@@ -1,0 +1,317 @@
+<!doctype html>
+<!-- PROTOTYPE, throw away. Question: what should the Map view of a Workspace look like, and how should editing on it feel?
+     Three structurally different automatic layouts (A left→right tree, B top-down tree, C radial), switch with ?variant=,
+     the bottom bar or ← / →. "List" shows the same data as a plain list, to check that map edits are the same edits.
+     Everything lives in memory: reload resets. Drag the background to pan, mouse wheel to zoom. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Map View Prototype</title>
+<style>
+:root{--bg:#f2f2f5;--fg:#1d1d1f;--muted:#8a8a92;--line:#c9c9d2;--accent:#2f6fde;--card:#fff;--soft:#f6f6f9;--proj:#e6eefc;--danger:#c0392b;--warn-bg:#ffe9a8;--warn-fg:#5a4500;--ok:#3a9b5c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141416;--fg:#ececf0;--muted:#8d8d96;--line:#3a3a42;--accent:#6ea0ff;--card:#1e1e22;--soft:#26262b;--proj:#1f2b44;--danger:#ff7b6b;--warn-bg:#4a3b00;--warn-fg:#ffe7a0;--ok:#5cc17f}}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:14px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);display:flex;flex-direction:column}
+.banner{font-size:12px;padding:6px 12px;background:var(--warn-bg);color:var(--warn-fg);text-align:center}
+.stage{flex:1;display:flex;justify-content:center;padding:10px 10px 70px;min-height:0}
+.frame{width:100%;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.frame.phone{max-width:390px}
+#hdr{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+#hdr h1{font-size:15px;margin:0}
+.grow{flex:1}
+select,.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;padding:3px 8px;font:inherit;font-size:13px;cursor:pointer}
+.btn:hover{background:var(--soft)}
+.btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.tiny{font-size:11px;padding:1px 6px}
+.seg{display:flex}.seg .btn{border-radius:0}.seg .btn:first-child{border-radius:8px 0 0 8px}.seg .btn:last-child{border-radius:0 8px 8px 0}
+#vp{position:relative;flex:1;overflow:hidden;background:var(--soft);touch-action:none;cursor:grab;min-height:300px}
+#vp.dragging{cursor:grabbing}
+#world{position:absolute;left:0;top:0;transform-origin:0 0}
+#edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+#edges path{fill:none;stroke:var(--line);stroke-width:1.6}
+.zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px;z-index:3}
+.node{position:absolute;display:flex;align-items:center;gap:4px;padding:4px 6px;border:1px solid var(--line);border-radius:9px;background:var(--card);cursor:default;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.node .txt{flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.node.t-project{background:var(--proj);border-color:var(--accent);font-weight:600}
+.node.t-ws{background:var(--accent);color:#fff;border-color:var(--accent);border-radius:20px;font-weight:700;justify-content:center}
+.node.t-ws .btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
+.node.t-note{border-style:dashed;background:transparent;font-size:12px;font-style:italic;color:var(--muted)}
+.node.crossed{opacity:.55}.node.crossed .txt{text-decoration:line-through}
+.node.sel{outline:2px solid var(--accent);outline-offset:2px}
+.fold{border:0;background:none;color:var(--muted);cursor:pointer;padding:0;width:14px;font-size:11px}
+.hidden-count{font-size:10px;background:var(--line);color:var(--fg);border-radius:8px;padding:0 5px}
+input[type=checkbox]{margin:0;width:15px;height:15px;cursor:pointer;flex:none}
+.due{font-size:10px;border:1px solid var(--line);border-radius:6px;padding:0 4px;color:var(--muted);white-space:nowrap;font-weight:400;font-style:normal}
+.due.late{color:var(--danger);border-color:var(--danger)}
+.prog{font-size:10px;color:var(--muted);font-weight:400}
+.mbtn{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 2px;font-size:14px}
+.pop{position:absolute;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.18);padding:6px;display:grid;gap:3px;min-width:170px}
+.pop button{text-align:left}
+#list{display:none;flex:1;overflow:auto;padding:12px}
+#list h3{margin:14px 0 4px;font-size:15px}
+#list .li{display:flex;gap:6px;align-items:center;padding:2px 0}
+#list .li.crossed .t{text-decoration:line-through;color:var(--muted)}
+#list .li.note .t{font-style:italic;color:var(--muted)}
+#state{display:none;position:absolute;left:10px;bottom:10px;max-width:min(420px,90%);max-height:45%;overflow:auto;font-size:10px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;z-index:4;white-space:pre}
+.switcher{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:#111;color:#fff;border-radius:24px;padding:6px 10px;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:10;font-size:13px;white-space:nowrap}
+.switcher button{background:#333;color:#fff;border:0;border-radius:50%;width:28px;height:28px;cursor:pointer}
+.switcher .w{border-radius:12px;width:auto;padding:0 10px}
+</style>
+</head>
+<body>
+<div class="banner">PROTOTYPE · Map view · nothing is saved · drag background to pan, wheel to zoom · ← / → switch layouts</div>
+<div class="stage"><div id="frame" class="frame">
+  <div id="hdr"></div>
+  <div id="vp"><div class="zoom"><button class="btn" data-a="zin">+</button><button class="btn" data-a="zout">−</button><button class="btn" data-a="fit" title="Fit">⤢</button></div>
+    <div id="world"></div><div id="state"></div></div>
+  <div id="list"></div>
+</div></div>
+<div class="switcher">
+  <button data-a="prev" aria-label="Previous layout">‹</button><span id="vlabel"></span><button data-a="next" aria-label="Next layout">›</button>
+  <button class="w" data-a="width" id="wbtn"></button>
+</div>
+<script>
+const VARIANTS = [['auto', 'Default: left → right everywhere'], ['A', 'Left → right tree'], ['B', 'Top-down tree'], ['C', 'Radial']];
+const MIN_S = 0.85; // on opening, never zoom out below this (14px text → ~12px), even if the map doesn't fit
+const W = 180, H = 46, NH = 36, TODAY = '2026-10-01';
+let uid = 1;
+const T = (text, o = {}) => ({ id: 'i' + uid++, type: 'task', text, crossed: !!o.crossed, collapsed: !!o.crossed, due: o.due || null, children: o.children || [], bottomed: false, snap: null });
+const N = text => ({ id: 'i' + uid++, type: 'note', text, crossed: false, collapsed: false, due: null, children: [], bottomed: false });
+const P = (text, children) => ({ id: 'p' + uid++, type: 'project', text, crossed: false, collapsed: false, due: null, children, bottomed: false, snap: null });
+
+const grant = P('Grant proposal', [
+  T('Draft introduction', { due: '2026-10-10', children: [
+    T('Collect key references', { crossed: true }),
+    T('Outline the three paragraphs', { due: '2026-10-05', children: [N('Check the reviewer comments from last round')] }),
+    T('Write the discussion', { children: [N('Compare against the 2019 cohort first')] }) ] }),
+  T('Send figures to co-authors', { due: '2026-09-29', children: [
+    T('Figure 1 – fix axis labels', { crossed: true }),
+    T('Figure 2', { children: [T('Re-run stats'), T('Export at 600 dpi', { due: '2026-10-02' })] }) ] }),
+  T('Plan the next study'),
+]);
+const teaching = P('Teaching', [
+  T('Prepare lecture 5', { due: '2026-10-06', children: [T('Slides'), T('Quiz', { children: [N('Reuse last year\'s question 3')] })] }),
+  T('Grade essays', { due: '2026-10-15' }),
+]);
+const home = P('Home renovation', [
+  T('Choose tiles', { due: '2026-10-12', children: [N('Showroom closes at 18:00')] }),
+  T('Call electrician'),
+  T('Paint bedroom', { crossed: true }),
+]);
+const state = {
+  variant: new URLSearchParams(location.search).get('variant') || 'auto',
+  phone: false, mode: 'map', ws: 'all', menu: null, showState: false,
+  projects: [grant, teaching, home],
+  workspaces: [{ id: 'all', name: 'All Projects' }, { id: 'w1', name: 'Research', ids: [grant.id, teaching.id] }, { id: 'w2', name: 'This week', ids: [grant.id, home.id] }],
+};
+const view = { tx: 0, ty: 0, s: 1 };
+
+// ---------- model ----------
+const desc = n => n.children.flatMap(c => [c, ...desc(c)]);
+const projDue = p => desc(p).filter(i => i.type === 'task' && !i.crossed && i.due).map(i => i.due).sort()[0] || null;
+const dueOf = n => n.type === 'project' ? projDue(n) : n.due; // shown on the chip: next OPEN deadline
+// Sort key: ticking must never move anything, so crossed Tasks still count; only '↓ bottom' removes an Item from the dated group.
+const projSortDue = p => desc(p).filter(i => i.type === 'task' && i.due && !i.bottomed).map(i => i.due).sort()[0] || null;
+const sortKey = n => n.type === 'project' ? projSortDue(n) : n.due;
+const eff = () => state.variant !== 'auto' ? state.variant : 'A'; // user: left → right is the default on laptop AND phone
+function ordered(arr) {
+  const dated = arr.filter(i => sortKey(i) && !i.bottomed).sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  return [...dated, ...arr.filter(i => !dated.includes(i))];
+}
+function locate(id, arr = state.projects, parent = null) {
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i].id === id) return { item: arr[i], arr, index: i, parent };
+    const r = locate(id, arr[i].children, arr[i]); if (r) return r;
+  }
+  return null;
+}
+const curWs = () => state.workspaces.find(w => w.id === state.ws);
+const wsProjects = () => { const w = curWs(); return w.ids ? state.projects.filter(p => w.ids.includes(p.id)) : state.projects; };
+function askDue() { const d = prompt('Due date (YYYY-MM-DD), leave empty for none:', ''); return d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null; }
+
+const actions = {
+  cross(id) {
+    const { item } = locate(id);
+    if (!item.crossed) {
+      item.snap = Object.fromEntries(desc(item).map(d => [d.id, d.crossed]));
+      item.crossed = true; item.collapsed = true; desc(item).forEach(d => d.crossed = true);
+    } else {
+      item.crossed = false; item.collapsed = false; item.bottomed = false;
+      desc(item).forEach(d => d.crossed = !!(item.snap && item.snap[d.id])); item.snap = null;
+    }
+    state.menu = null;
+  },
+  fold(id) { const { item } = locate(id); item.collapsed = !item.collapsed; },
+  menu(id) { state.menu = state.menu === id ? null : id; },
+  addTask(id) { const t = prompt('New Task:'); if (!t) return; const p = locate(id).item; p.children.push(T(t.trim(), { due: askDue() })); p.collapsed = false; state.menu = null; },
+  addNote(id) { const t = prompt('New Note:'); if (!t) return; const p = locate(id).item; p.children.push(N(t.trim())); p.collapsed = false; state.menu = null; },
+  edit(id) { const it = locate(id).item; const t = prompt('Edit text:', it.text); if (t) it.text = t.trim(); state.menu = null; },
+  setDue(id) { const it = locate(id).item; it.due = askDue(); state.menu = null; },
+  toTask(id) { locate(id).item.type = 'task'; state.menu = null; },
+  bottom(id) { const { item, arr, index } = locate(id); item.bottomed = true; arr.push(arr.splice(index, 1)[0]); state.menu = null; },
+  del(id) { const { item, arr, index } = locate(id); if (confirm('Delete "' + item.text + '" and everything under it?')) arr.splice(index, 1); state.menu = null; },
+  addProject() {
+    const t = prompt('New Project name:'); if (!t) return;
+    const p = P(t.trim(), []); state.projects.push(p); const w = curWs(); if (w.ids) w.ids.push(p.id);
+  },
+  mode(_, el) { state.mode = el.dataset.m; state.menu = null; return 'fit'; },
+  stateToggle() { state.showState = !state.showState; },
+  width() { state.phone = !state.phone; return 'fit'; },
+  prev() { cycle(-1); return 'fit'; }, next() { cycle(1); return 'fit'; },
+  zin() { zoomAt(1.25); }, zout() { zoomAt(0.8); }, fit() { return 'fit'; },
+};
+function cycle(d) {
+  const i = VARIANTS.findIndex(v => v[0] === state.variant);
+  state.variant = VARIANTS[(i + d + VARIANTS.length) % VARIANTS.length][0];
+  const u = new URL(location); u.searchParams.set('variant', state.variant); history.replaceState(null, '', u);
+  state.menu = null;
+}
+
+// ---------- layout ----------
+const hOf = n => n.type === 'note' ? NH : n.type === 'ws' ? 40 : H;
+function build(n, depth) {
+  const kids = (n.type === 'ws' || !n.collapsed) ? ordered(n.children).map(c => build(c, depth + 1)) : [];
+  return { n, depth, kids, h: hOf(n) };
+}
+function flatten(t) {
+  let leaf = 0; const out = [];
+  (function rec(t, parent) {
+    out.push(t); t.parent = parent; t.kids.forEach(k => rec(k, t));
+    t.leaf = t.kids.length ? (t.kids[0].leaf + t.kids[t.kids.length - 1].leaf) / 2 : leaf++;
+  })(t, null);
+  return { out, leaves: leaf };
+}
+function layout(root) {
+  const { out, leaves } = flatten(build(root, 0));
+  if (eff() === 'A') out.forEach(t => { t.x = t.depth * (W + 70); t.y = t.leaf * (H + 14); });
+  if (eff() === 'B') out.forEach(t => { t.x = t.leaf * (W + 18); t.y = t.depth * (H + 70); });
+  if (eff() === 'C') {
+    const step = Math.max(260, leaves * 110 / (2 * Math.PI));
+    out.forEach(t => { const a = t.leaf / Math.max(1, leaves) * 2 * Math.PI - Math.PI / 2, r = t.depth * step; t.x = r * Math.cos(a); t.y = r * Math.sin(a); });
+    out[0].x = 0; out[0].y = 0;
+  }
+  return out;
+}
+function edge(p, c) {
+  if (eff() === 'A') { const x1 = p.x + W / 2, x2 = c.x - W / 2; return `M${x1},${p.y} C${x1 + 35},${p.y} ${x2 - 35},${c.y} ${x2},${c.y}`; }
+  if (eff() === 'B') { const y1 = p.y + p.h / 2, y2 = c.y - c.h / 2; return `M${p.x},${y1} C${p.x},${y1 + 35} ${c.x},${y2 - 35} ${c.x},${y2}`; }
+  return `M${p.x},${p.y} L${c.x},${c.y}`;
+}
+
+// ---------- render ----------
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = d => new Date(d + 'T12:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+const chip = (n) => { const d = dueOf(n); return d ? `<span class="due ${!n.crossed && d < TODAY ? 'late' : ''}">${fmt(d)}</span>` : ''; };
+function prog(n) { const ds = desc(n).filter(d => d.type !== 'note'); return ds.length ? `<span class="prog">${ds.filter(d => d.crossed).length}/${ds.length}</span>` : ''; }
+function nodeHtml(t) {
+  const n = t.n, left = t.x - W / 2, top = t.y - t.h / 2, pos = `left:${left}px;top:${top}px;width:${W}px;height:${t.h}px`;
+  if (n.type === 'ws') return `<div class="node t-ws" style="${pos}"><span>${esc(n.text)}</span><button class="btn tiny" data-a="addProject">+ Project</button></div>`;
+  const fold = n.children.length ? `<button class="fold" data-a="fold" data-id="${n.id}">${n.collapsed ? '▸' : '▾'}</button>` : '';
+  const hidden = n.collapsed && n.children.length ? `<span class="hidden-count">+${desc(n).length}</span>` : '';
+  const mark = n.type === 'task' ? `<input type="checkbox" data-a="cross" data-id="${n.id}" ${n.crossed ? 'checked' : ''}>` : '';
+  return `<div class="node t-${n.type} ${n.crossed ? 'crossed' : ''} ${state.menu === n.id ? 'sel' : ''}" style="${pos}" title="${esc(n.text)}">
+    ${fold}${mark}<span class="txt">${esc(n.text)}</span>${hidden}${n.type !== 'note' ? prog(n) : ''}${chip(n)}
+    <button class="mbtn" data-a="menu" data-id="${n.id}" aria-label="Menu">⋯</button></div>`;
+}
+function popHtml(t) {
+  const n = t.n, b = (a, l) => `<button class="btn tiny" data-a="${a}" data-id="${n.id}">${l}</button>`;
+  const items = [];
+  if (n.type !== 'note') items.push(b('addTask', '+ Task under'));
+  if (n.type === 'task') items.push(b('addNote', '+ Note under'));
+  items.push(b('edit', n.type === 'project' ? 'Rename' : 'Edit text'));
+  if (n.type === 'task') items.push(b('setDue', 'Set due date'));
+  if (n.type === 'note') items.push(b('toTask', '→ Make Task'));
+  items.push(b('cross', n.crossed ? 'Un-cross' : 'Cross out'));
+  if (n.crossed) items.push(b('bottom', '↓ To bottom'), b('del', '🗑 Delete'));
+  return `<div class="pop" style="left:${t.x - W / 2}px;top:${t.y + t.h / 2 + 6}px">${items.join('')}</div>`;
+}
+let nodes = [];
+function renderMap() {
+  nodes = layout({ id: 'root', type: 'ws', text: curWs().name, children: wsProjects() });
+  const paths = nodes.filter(t => t.parent).map(t => `<path d="${edge(t.parent, t)}"/>`).join('');
+  const menuNode = nodes.find(t => t.n.id === state.menu);
+  document.getElementById('world').innerHTML = `<svg id="edges">${paths}</svg>${nodes.map(nodeHtml).join('')}${menuNode ? popHtml(menuNode) : ''}`;
+  applyView();
+}
+function renderList() {
+  const rows = (n, d) => ordered(n.children).map(c => `<div class="li ${c.type} ${c.crossed ? 'crossed' : ''}" style="padding-left:${d * 20}px">
+      ${c.type === 'task' ? `<input type="checkbox" data-a="cross" data-id="${c.id}" ${c.crossed ? 'checked' : ''}>` : '<span>•</span>'}<span class="t">${esc(c.text)}</span>${chip(c)}</div>
+      ${c.collapsed ? '' : rows(c, d + 1)}`).join('');
+  document.getElementById('list').innerHTML = ordered(wsProjects()).map(p => `<h3 style="${p.crossed ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(p.text)} ${chip(p)}</h3>${rows(p, 0)}`).join('')
+    + '<p class="prog">Simplified list (the real one is the Cards design). Edits made on the map show up here, and the other way round.</p>';
+}
+function render(fitAfter) {
+  const f = document.getElementById('frame');
+  f.className = 'frame' + (state.phone ? ' phone' : '');
+  document.getElementById('hdr').innerHTML = `<h1>Workspace</h1>
+    <select id="ws">${state.workspaces.map(w => `<option value="${w.id}" ${w.id === state.ws ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select>
+    <span class="grow"></span>
+    <div class="seg"><button class="btn ${state.mode === 'map' ? 'on' : ''}" data-a="mode" data-m="map">Map</button><button class="btn ${state.mode === 'list' ? 'on' : ''}" data-a="mode" data-m="list">List</button></div>
+    <button class="btn tiny" data-a="stateToggle">State</button>`;
+  document.getElementById('vp').style.display = state.mode === 'map' ? '' : 'none';
+  document.getElementById('list').style.display = state.mode === 'list' ? 'block' : 'none';
+  if (state.mode === 'map') renderMap(); else renderList();
+  const st = document.getElementById('state');
+  st.style.display = state.showState ? 'block' : 'none';
+  if (state.showState) st.textContent = JSON.stringify(state.projects, (k, v) => k === 'snap' ? undefined : v, 1);
+  const v = VARIANTS.find(v => v[0] === state.variant);
+  document.getElementById('vlabel').textContent = state.variant === 'auto' ? `Default → ${eff()}` : `${v[0]} (${v[1]})`;
+  document.getElementById('wbtn').textContent = state.phone ? 'Phone width' : 'Full width';
+  if (fitAfter && state.mode === 'map') requestAnimationFrame(fit);
+}
+
+// ---------- pan / zoom ----------
+const vp = document.getElementById('vp');
+function applyView() { document.getElementById('world').style.transform = `translate(${view.tx}px,${view.ty}px) scale(${view.s})`; }
+function fit() {
+  if (!nodes.length) return;
+  const minX = Math.min(...nodes.map(t => t.x - W / 2)), maxX = Math.max(...nodes.map(t => t.x + W / 2));
+  const minY = Math.min(...nodes.map(t => t.y - t.h / 2)), maxY = Math.max(...nodes.map(t => t.y + t.h / 2));
+  const r = vp.getBoundingClientRect(), pad = 40;
+  const fitS = Math.min(1.2, (r.width - pad) / (maxX - minX), (r.height - pad) / (maxY - minY));
+  view.s = Math.max(MIN_S, fitS);
+  if (fitS >= MIN_S) { // everything fits at a readable size: centre it
+    view.tx = (r.width - (maxX - minX) * view.s) / 2 - minX * view.s;
+    view.ty = (r.height - (maxY - minY) * view.s) / 2 - minY * view.s;
+  } else if (eff() === 'B') { // too big: keep text readable, start with the Workspace at the top centre, pan for the rest
+    view.tx = r.width / 2 - nodes[0].x * view.s; view.ty = pad / 2 - minY * view.s;
+  } else if (eff() === 'A') { // start at the top-left, pan down/right for the rest
+    view.tx = pad / 2 - minX * view.s; view.ty = pad / 2 - minY * view.s;
+  } else { view.tx = r.width / 2; view.ty = r.height / 2; }
+  applyView();
+}
+function zoomAt(k, cx, cy) {
+  const r = vp.getBoundingClientRect(); cx = cx ?? r.width / 2; cy = cy ?? r.height / 2;
+  const s = Math.min(2.5, Math.max(0.15, view.s * k)); k = s / view.s;
+  view.tx = cx - (cx - view.tx) * k; view.ty = cy - (cy - view.ty) * k; view.s = s; applyView();
+}
+let drag = null;
+vp.addEventListener('pointerdown', e => {
+  if (e.target.closest('.node,.pop,button,select,input')) return;
+  drag = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty }; vp.setPointerCapture(e.pointerId); vp.classList.add('dragging');
+  if (state.menu) { state.menu = null; renderMap(); }
+});
+vp.addEventListener('pointermove', e => { if (!drag) return; view.tx = drag.tx + e.clientX - drag.x; view.ty = drag.ty + e.clientY - drag.y; applyView(); });
+vp.addEventListener('pointerup', () => { drag = null; vp.classList.remove('dragging'); });
+vp.addEventListener('wheel', e => { e.preventDefault(); const r = vp.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+
+// ---------- events ----------
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]'); if (!el || !actions[el.dataset.a]) return;
+  const r = actions[el.dataset.a](el.dataset.id, el);
+  if (['zin', 'zout'].includes(el.dataset.a)) return;
+  render(r === 'fit');
+});
+document.addEventListener('change', e => { if (e.target.id === 'ws') { state.ws = e.target.value; state.menu = null; render(true); } });
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,textarea,select,[contenteditable]')) return;
+  if (e.key === 'ArrowLeft') { cycle(-1); render(true); }
+  if (e.key === 'ArrowRight') { cycle(1); render(true); }
+});
+window.addEventListener('resize', () => fit());
+render(true);
+</script>
+</body>
+</html>
