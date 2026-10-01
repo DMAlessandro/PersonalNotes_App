@@ -68,3 +68,11 @@ Edits that are Saved on a device but not yet Pushed. Folding a branch is Pushed 
 
 **Readable copy**:
 The formatted Markdown page of each Project that every Push writes to the repo, for reading on github.com. It is never edited by hand.
+
+**Pull**:
+Fetching the changes the other device has Pushed and merging them into this device's copy. It happens automatically on opening and before every Push.
+_Avoid_: Sync, refresh, download
+
+**Clash**:
+The same Item's text, tick or due date changed differently on two devices since the last Pull. It is settled by the user in the resolver.
+_Avoid_: Conflict, collision

@@ -27,17 +27,12 @@ A buildable spec at `.scratch/personal-note-app/spec.md`: every design decision 
 - [List view look](issues/07-list-view-prototype.md): Cards layout (adaptive columns on laptop, one on phone); + button opens an add panel; Delete only appears after Cross out; crossing out never moves an Item, only "↓ bottom" does.
 - [Map view look & editing](issues/06-map-view-prototype.md): left→right tree by default on laptop and phone (top-down as a manual switch), always placed automatically; opens no smaller than ~12px text (pan for the rest); Notes shown as small dashed boxes; the same ⋯ edits as the List view; ticking never moves anything (Project sort uses all its dated Tasks).
 - [Repo storage layout & commit granularity](issues/04-storage-layout.md): JSON file per Project + index.json (Workspaces, Project order) + weekly Change log files; readable Markdown copy regenerated on every Push; one Push = one atomic commit with an automatic message; fold changes ride along without counting as unpushed.
+- [Sync & conflict policy](issues/05-sync-conflict-policy.md): pull on open/foreground and before every Push; per-Item three-way merge (different Items and position-only clashes merge silently, later change wins; an edit beats a Delete); a same-Item content clash opens a this/other/keep-both resolver as soon as it's found; a rejected Push auto-retries; badge + persistent storage protect unpushed work.
+- [Tech stack & hosting confirmation](issues/08-tech-stack-hosting.md): public `PersonalNotes_App` on GitHub Pages (Actions deploy), private `PersonalNotes` for data; fine-grained token stored per device; React/TS/Vite PWA, IndexedDB, Zustand, plain fetch, hand-drawn map, Vitest.
 
 ## Not yet specified
 
-- Change log screen: where it lives (per Project or global), how to browse and restore from it.
-- Due dates: reminders/notifications on the phone, and an "upcoming" overview across Projects (or none).
-- Conflict-resolver screen details: layout and wording (after the sync & conflict policy ticket).
-- Touch interactions in the Map view on a phone: pinch-zoom, tap vs long-press for the ⋯ menu, inline text editing on a box.
-- Search across Projects.
-- How the GitHub token is stored and secured on each device.
-- Export/backup beyond the GitHub repo itself.
-- Splitting the final spec into build stages (the last step before the destination).
+<!-- all fog graduated into tickets 09-12 or ruled out of scope on 2026-10-01 -->
 
 ## Out of scope
 
@@ -45,3 +40,6 @@ A buildable spec at `.scratch/personal-note-app/spec.md`: every design decision 
 - Collaborators / multiple users.
 - Manual links/lines between boxes in the Map view.
 - Full offline-first operation.
+- Due-date reminders/notifications and an "upcoming deadlines" overview across Projects: not in v1 (user, 2026-10-01).
+- Export/backup beyond the GitHub repo and its history: not in v1 (user).
+- A designed conflict-resolver screen: v1 uses the plain side-by-side with Keep this / Keep other / Keep both, as decided in the sync & conflict policy ticket (user).
