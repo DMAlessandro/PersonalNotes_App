@@ -29,6 +29,8 @@ A buildable spec at `.scratch/personal-note-app/spec.md`: every design decision 
 - [Repo storage layout & commit granularity](issues/04-storage-layout.md): JSON file per Project + index.json (Workspaces, Project order) + weekly Change log files; readable Markdown copy regenerated on every Push; one Push = one atomic commit with an automatic message; fold changes ride along without counting as unpushed.
 - [Sync & conflict policy](issues/05-sync-conflict-policy.md): pull on open/foreground and before every Push; per-Item three-way merge (different Items and position-only clashes merge silently, later change wins; an edit beats a Delete); a same-Item content clash opens a this/other/keep-both resolver as soon as it's found; a rejected Push auto-retries; badge + persistent storage protect unpushed work.
 - [Tech stack & hosting confirmation](issues/08-tech-stack-hosting.md): public `PersonalNotes_App` on GitHub Pages (Actions deploy), private `PersonalNotes` for data; fine-grained token stored per device; React/TS/Vite PWA, IndexedDB, Zustand, plain fetch, hand-drawn map, Vitest.
+- [Change log screen](issues/09-change-log-screen.md): per-Project Log + global Change log; grouped by week, newest first; restoring a Delete brings back missing parents/Projects too; entries are permanent.
+- [Search across Projects](issues/10-search.md): all Projects (current Workspace first); Item text, crossed-out matches shown dimmed; one "Has due date" filter; a result jumps to the Item in the List view.
 
 ## Not yet specified
 

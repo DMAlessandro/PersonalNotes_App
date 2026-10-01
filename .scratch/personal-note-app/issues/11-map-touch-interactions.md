@@ -1,7 +1,7 @@
 # Map view touch interactions on a phone
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by:
 
 ## Question

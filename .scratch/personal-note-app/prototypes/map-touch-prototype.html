@@ -1,0 +1,337 @@
+<!-- PROTOTYPE, throw away. Question: how should the Map view feel with fingers on an Android phone?
+     Variants (bottom bar / ?variant=): "inline" = edit text right on the box, "panel" = edit in a bottom panel.
+     Touch: one finger drags the background, two fingers pinch-zoom, long-press a box opens its menu.
+     Layout is the decided left → right tree (top-down available as a manual switch). Everything in memory. -->
+<title>PersonalNote Map Touch</title>
+<style>
+:root{--bg:#f2f2f5;--fg:#1d1d1f;--muted:#8a8a92;--line:#c9c9d2;--accent:#2f6fde;--card:#fff;--soft:#f6f6f9;--proj:#e6eefc;--danger:#c0392b;--warn-bg:#ffe9a8;--warn-fg:#5a4500}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141416;--fg:#ececf0;--muted:#8d8d96;--line:#3a3a42;--accent:#6ea0ff;--card:#1e1e22;--soft:#26262b;--proj:#1f2b44;--danger:#ff7b6b;--warn-bg:#4a3b00;--warn-fg:#ffe7a0;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141416;--fg:#ececf0;--muted:#8d8d96;--line:#3a3a42;--accent:#6ea0ff;--card:#1e1e22;--soft:#26262b;--proj:#1f2b44;--danger:#ff7b6b;--warn-bg:#4a3b00;--warn-fg:#ffe7a0;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:14px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);display:flex;flex-direction:column}
+.banner{font-size:12px;padding:5px 12px;background:var(--warn-bg);color:var(--warn-fg);text-align:center}
+.stage{flex:1;display:flex;justify-content:center;padding-block:8px calc(64px + env(safe-area-inset-bottom, 0px));padding-inline:16px;min-height:0}
+.frame{width:100%;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.frame.phone{max-width:390px}
+#hdr{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+#hdr h1{font-size:15px;margin:0}
+.grow{flex:1}
+select,.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;padding:4px 9px;font:inherit;font-size:13px;cursor:pointer}
+.btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.tiny{font-size:11px;padding:1px 6px}
+#vp{position:relative;flex:1;overflow:hidden;background:var(--soft);touch-action:none;cursor:grab;min-height:300px;-webkit-user-select:none;user-select:none}
+#world{position:absolute;left:0;top:0;transform-origin:0 0}
+#edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+#edges path{fill:none;stroke:var(--line);stroke-width:1.6}
+.zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px;z-index:3}
+.node{position:absolute;display:flex;align-items:center;gap:4px;padding:4px 6px;border:1px solid var(--line);border-radius:9px;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.06);transition:box-shadow .15s}
+.node.pressing{box-shadow:0 0 0 4px rgba(47,111,222,.35)}
+.node .txt{flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.node .inl{flex:1;min-width:0;font:inherit;border:1px solid var(--accent);border-radius:6px;padding:2px 4px;background:var(--card);color:var(--fg);-webkit-user-select:text;user-select:text}
+.node.t-project{background:var(--proj);border-color:var(--accent);font-weight:600}
+.node.t-ws{background:var(--accent);color:#fff;border-color:var(--accent);border-radius:20px;font-weight:700;justify-content:center}
+.node.t-ws .btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
+.node.t-note{border-style:dashed;background:transparent;font-size:12px;font-style:italic;color:var(--muted)}
+.node.crossed{opacity:.55}.node.crossed .txt{text-decoration:line-through}
+.node.sel{outline:2px solid var(--accent);outline-offset:2px}
+.fold{border:0;background:none;color:var(--muted);cursor:pointer;padding:0;width:14px;font-size:11px}
+.hidden-count{font-size:10px;background:var(--line);border-radius:8px;padding:0 5px}
+input[type=checkbox]{margin:0;width:15px;height:15px;cursor:pointer;flex:none}
+.due{font-size:10px;border:1px solid var(--line);border-radius:6px;padding:0 4px;color:var(--muted);white-space:nowrap;font-weight:400;font-style:normal}
+.due.late{color:var(--danger);border-color:var(--danger)}
+.prog{font-size:10px;color:var(--muted);font-weight:400}
+.mbtn{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 2px;font-size:14px}
+/* bigger targets for fingers */
+.touch .node input[type=checkbox]{width:22px;height:22px}
+.touch .fold{width:24px;font-size:15px}
+.touch .mbtn{font-size:22px;padding:0 6px}
+.pop{position:absolute;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.18);padding:6px;display:grid;gap:3px;min-width:170px}
+#sheet{position:absolute;left:0;right:0;bottom:0;z-index:6;background:var(--card);border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -8px 24px rgba(0,0,0,.18);padding:12px;display:none;gap:8px;-webkit-user-select:text;user-select:text}
+#sheet.open{display:grid}
+#sheet .title{font-weight:600;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sheet .act{padding:12px;font-size:15px;text-align:left;border-radius:10px}
+#sheet textarea{font:inherit;font-size:16px;border:1px solid var(--line);border-radius:10px;padding:8px;min-height:70px;background:var(--card);color:var(--fg)}
+#sheet input[type=date]{font:inherit;font-size:15px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}
+#log{position:absolute;left:8px;bottom:8px;font-size:11px;color:var(--muted);z-index:2;pointer-events:none}
+.switcher{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:#111;color:#fff;border-radius:24px;padding:6px 10px;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:10;font-size:13px;white-space:nowrap}
+.switcher button{background:#333;color:#fff;border:0;border-radius:50%;width:30px;height:30px;cursor:pointer}
+.switcher .w{border-radius:12px;width:auto;padding:0 10px}
+</style>
+<div class="banner">PROTOTYPE · Map on a phone · 1 finger drag = pan · 2 fingers = zoom · long-press a box = menu</div>
+<div class="stage"><div id="frame" class="frame">
+  <div id="hdr"></div>
+  <div id="vp"><div class="zoom"><button class="btn" data-a="zin">+</button><button class="btn" data-a="zout">−</button><button class="btn" data-a="fit">⤢</button></div>
+    <div id="world"></div><div id="log"></div><div id="sheet"></div></div>
+</div></div>
+<div class="switcher">
+  <button data-a="prev" aria-label="Previous variant">‹</button><span id="vlabel"></span><button data-a="next" aria-label="Next variant">›</button>
+  <button class="w" data-a="width" id="wbtn"></button>
+</div>
+<script>
+const VARIANTS = [['inline', 'Edit on the box'], ['panel', 'Edit in bottom panel']];
+const W = 180, TODAY = '2026-10-01', MIN_S = 0.85;
+let H = 46, NH = 36, uid = 1;
+const coarse = matchMedia('(pointer: coarse)').matches;
+const T = (text, o = {}) => ({ id: 'i' + uid++, type: 'task', text, crossed: !!o.crossed, collapsed: !!o.crossed, due: o.due || null, children: o.children || [], bottomed: false, snap: null });
+const N = text => ({ id: 'i' + uid++, type: 'note', text, crossed: false, collapsed: false, due: null, children: [], bottomed: false });
+const P = (text, children) => ({ id: 'p' + uid++, type: 'project', text, crossed: false, collapsed: false, due: null, children, bottomed: false, snap: null });
+const grant = P('Grant proposal', [
+  T('Draft introduction', { due: '2026-10-10', children: [
+    T('Collect key references', { crossed: true }),
+    T('Outline the three paragraphs', { due: '2026-10-05', children: [N('Check the reviewer comments from last round')] }),
+    T('Write the discussion', { children: [N('Compare against the 2019 cohort first')] }) ] }),
+  T('Send figures to co-authors', { due: '2026-09-29', children: [T('Figure 1 – fix axis labels', { crossed: true }), T('Figure 2', { children: [T('Re-run stats'), T('Export at 600 dpi', { due: '2026-10-02' })] })] }),
+  T('Plan the next study'),
+]);
+const teaching = P('Teaching', [T('Prepare lecture 5', { due: '2026-10-06', children: [T('Slides'), T('Quiz', { children: [N("Reuse last year's question 3")] })] }), T('Grade essays', { due: '2026-10-15' })]);
+const home = P('Home renovation', [T('Choose tiles', { due: '2026-10-12', children: [N('Showroom closes at 18:00')] }), T('Call electrician'), T('Paint bedroom', { crossed: true })]);
+const state = {
+  variant: (() => { try { return new URLSearchParams(location.search).get('variant') || 'inline'; } catch (_) { return 'inline'; } })(),
+  phone: coarse, layout: 'A', ws: 'all', menu: null, editing: null, sheet: null,
+  projects: [grant, teaching, home],
+  workspaces: [{ id: 'all', name: 'All Projects' }, { id: 'w1', name: 'Research', ids: [grant.id, teaching.id] }, { id: 'w2', name: 'This week', ids: [grant.id, home.id] }],
+};
+const view = { tx: 0, ty: 0, s: 1 };
+const isTouchUi = () => state.phone || coarse;
+
+// ---------- model (same rules as the map prototype) ----------
+const desc = n => n.children.flatMap(c => [c, ...desc(c)]);
+const projDue = p => desc(p).filter(i => i.type === 'task' && !i.crossed && i.due).map(i => i.due).sort()[0] || null;
+const dueOf = n => n.type === 'project' ? projDue(n) : n.due;
+const projSortDue = p => desc(p).filter(i => i.type === 'task' && i.due && !i.bottomed).map(i => i.due).sort()[0] || null;
+const sortKey = n => n.type === 'project' ? projSortDue(n) : n.due;
+function ordered(arr) { const d = arr.filter(i => sortKey(i) && !i.bottomed).sort((a, b) => sortKey(a).localeCompare(sortKey(b))); return [...d, ...arr.filter(i => !d.includes(i))]; }
+function locate(id, arr = state.projects, parent = null) {
+  for (let i = 0; i < arr.length; i++) { if (arr[i].id === id) return { item: arr[i], arr, index: i, parent }; const r = locate(id, arr[i].children, arr[i]); if (r) return r; }
+  return null;
+}
+const curWs = () => state.workspaces.find(w => w.id === state.ws);
+const wsProjects = () => { const w = curWs(); return w.ids ? state.projects.filter(p => w.ids.includes(p.id)) : state.projects; };
+const say = t => { document.getElementById('log').textContent = t; };
+
+// ---------- editing ----------
+function startAdd(parentId, type) {
+  state.menu = null;
+  if (state.variant === 'inline') {
+    const p = locate(parentId).item, it = type === 'note' ? N('') : type === 'project' ? P('', []) : T('');
+    if (type === 'project') { state.projects.push(it); const w = curWs(); if (w.ids) w.ids.push(it.id); } else { p.children.push(it); p.collapsed = false; }
+    state.editing = { id: it.id, isNew: true };
+  } else state.sheet = { kind: 'form', parentId, type, isNew: true, text: '', due: '' };
+}
+function startEdit(id) {
+  state.menu = null; const it = locate(id).item;
+  if (state.variant === 'inline') state.editing = { id, isNew: false };
+  else state.sheet = { kind: 'form', id, type: it.type, isNew: false, text: it.text, due: it.due || '' };
+}
+function commitInline(value) {
+  const e = state.editing; if (!e) return; state.editing = null;
+  const loc = locate(e.id); if (!loc) return;
+  const v = value.trim();
+  if (!v) { if (e.isNew) loc.arr.splice(loc.index, 1); return; }
+  loc.item.text = v;
+}
+function commitSheet() {
+  const sh = state.sheet, text = document.getElementById('sh-text')?.value.trim(), due = document.getElementById('sh-due')?.value || null;
+  if (sh.kind === 'due') { locate(sh.id).item.due = due; state.sheet = null; return; }
+  if (!text) { state.sheet = null; return; }
+  if (sh.isNew) {
+    const it = sh.type === 'note' ? N(text) : sh.type === 'project' ? P(text, []) : T(text, { due });
+    if (sh.type === 'project') { state.projects.push(it); const w = curWs(); if (w.ids) w.ids.push(it.id); }
+    else { const p = locate(sh.parentId).item; p.children.push(it); p.collapsed = false; }
+  } else { const it = locate(sh.id).item; it.text = text; if (it.type === 'task') it.due = due; }
+  state.sheet = null;
+}
+
+const actions = {
+  cross(id) {
+    const { item } = locate(id);
+    if (!item.crossed) { item.snap = Object.fromEntries(desc(item).map(d => [d.id, d.crossed])); item.crossed = true; item.collapsed = true; desc(item).forEach(d => d.crossed = true); }
+    else { item.crossed = false; item.collapsed = false; item.bottomed = false; desc(item).forEach(d => d.crossed = !!(item.snap && item.snap[d.id])); item.snap = null; }
+    state.menu = null; state.sheet = null;
+  },
+  fold(id) { const { item } = locate(id); item.collapsed = !item.collapsed; },
+  menu(id) { state.menu = state.menu === id ? null : id; state.sheet = null; },
+  addTask(id) { startAdd(id, 'task'); }, addNote(id) { startAdd(id, 'note'); }, addProject() { startAdd(null, 'project'); },
+  edit(id) { startEdit(id); },
+  setDue(id) { state.menu = null; state.sheet = { kind: 'due', id, due: locate(id).item.due || '' }; },
+  toTask(id) { locate(id).item.type = 'task'; state.menu = null; state.sheet = null; },
+  bottom(id) { const { item, arr, index } = locate(id); item.bottomed = true; arr.push(arr.splice(index, 1)[0]); state.menu = null; state.sheet = null; },
+  del(id) { state.menu = null; state.sheet = { kind: 'del', id }; },
+  delYes(id) { const { arr, index } = locate(id); arr.splice(index, 1); state.sheet = null; },
+  save() { commitSheet(); }, cancel() { state.sheet = null; state.menu = null; },
+  layout() { state.layout = state.layout === 'A' ? 'B' : 'A'; return 'fit'; },
+  width() { state.phone = !state.phone; return 'fit'; },
+  prev() { cycle(-1); }, next() { cycle(1); },
+  zin() { zoomAt(1.25); return 'nr'; }, zout() { zoomAt(0.8); return 'nr'; }, fit() { return 'fit'; },
+};
+function cycle(d) {
+  const i = VARIANTS.findIndex(v => v[0] === state.variant);
+  state.variant = VARIANTS[(i + d + VARIANTS.length) % VARIANTS.length][0];
+  try { const u = new URL(location); u.searchParams.set('variant', state.variant); history.replaceState(null, '', u); } catch (_) {}
+  state.menu = null; state.sheet = null; state.editing = null;
+}
+
+// ---------- layout ----------
+const hOf = n => n.type === 'note' ? NH : n.type === 'ws' ? 42 : H;
+function build(n, depth) { const kids = (n.type === 'ws' || !n.collapsed) ? ordered(n.children).map(c => build(c, depth + 1)) : []; return { n, depth, kids, h: hOf(n) }; }
+function layout(root) {
+  let leaf = 0; const out = [];
+  (function rec(t, parent) { out.push(t); t.parent = parent; t.kids.forEach(k => rec(k, t)); t.leaf = t.kids.length ? (t.kids[0].leaf + t.kids[t.kids.length - 1].leaf) / 2 : leaf++; })(build(root, 0), null);
+  if (state.layout === 'A') out.forEach(t => { t.x = t.depth * (W + 70); t.y = t.leaf * (H + 14); });
+  else out.forEach(t => { t.x = t.leaf * (W + 18); t.y = t.depth * (H + 70); });
+  return out;
+}
+function edge(p, c) {
+  if (state.layout === 'A') { const x1 = p.x + W / 2, x2 = c.x - W / 2; return `M${x1},${p.y} C${x1 + 35},${p.y} ${x2 - 35},${c.y} ${x2},${c.y}`; }
+  const y1 = p.y + p.h / 2, y2 = c.y - c.h / 2; return `M${p.x},${y1} C${p.x},${y1 + 35} ${c.x},${y2 - 35} ${c.x},${y2}`;
+}
+
+// ---------- render ----------
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = d => new Date(d + 'T12:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+const chip = n => { const d = dueOf(n); return d ? `<span class="due ${!n.crossed && d < TODAY ? 'late' : ''}">${fmt(d)}</span>` : ''; };
+function prog(n) { const ds = desc(n).filter(d => d.type !== 'note'); return ds.length ? `<span class="prog">${ds.filter(d => d.crossed).length}/${ds.length}</span>` : ''; }
+function nodeHtml(t) {
+  const n = t.n, pos = `left:${t.x - W / 2}px;top:${t.y - t.h / 2}px;width:${W}px;height:${t.h}px`;
+  if (n.type === 'ws') return `<div class="node t-ws" style="${pos}"><span>${esc(n.text)}</span><button class="btn tiny" data-a="addProject">+ Project</button></div>`;
+  const editing = state.editing && state.editing.id === n.id;
+  const fold = n.children.length ? `<button class="fold" data-a="fold" data-id="${n.id}">${n.collapsed ? '▸' : '▾'}</button>` : '';
+  const hidden = n.collapsed && n.children.length ? `<span class="hidden-count">+${desc(n).length}</span>` : '';
+  const mark = n.type === 'task' ? `<input type="checkbox" data-a="cross" data-id="${n.id}" ${n.crossed ? 'checked' : ''}>` : '';
+  const text = editing ? `<input class="inl" id="inl" value="${esc(n.text)}" placeholder="${n.type === 'note' ? 'Note…' : n.type === 'project' ? 'Project name…' : 'Task…'}" enterkeyhint="done">`
+    : `<span class="txt" data-edit="${n.id}">${esc(n.text)}</span>`;
+  return `<div class="node t-${n.type} ${n.crossed ? 'crossed' : ''} ${state.menu === n.id ? 'sel' : ''}" data-node="${n.id}" style="${pos}">
+    ${fold}${mark}${text}${editing ? '' : hidden + (n.type !== 'note' ? prog(n) : '') + chip(n)}
+    ${editing ? '' : `<button class="mbtn" data-a="menu" data-id="${n.id}" aria-label="Menu">⋯</button>`}</div>`;
+}
+function menuButtons(n, cls) {
+  const b = (a, l) => `<button class="${cls}" data-a="${a}" data-id="${n.id}">${l}</button>`, out = [];
+  if (n.type !== 'note') out.push(b('addTask', '+ Task under'));
+  if (n.type === 'task') out.push(b('addNote', '+ Note under'));
+  out.push(b('edit', n.type === 'project' ? 'Rename' : 'Edit text'));
+  if (n.type === 'task') out.push(b('setDue', 'Set due date'));
+  if (n.type === 'note') out.push(b('toTask', '→ Make Task'));
+  out.push(b('cross', n.crossed ? 'Un-cross' : 'Cross out'));
+  if (n.crossed) out.push(b('bottom', '↓ To bottom'), b('del', '🗑 Delete'));
+  return out.join('');
+}
+let nodes = [];
+function renderMap() {
+  nodes = layout({ id: 'root', type: 'ws', text: curWs().name, children: wsProjects() });
+  const paths = nodes.filter(t => t.parent).map(t => `<path d="${edge(t.parent, t)}"/>`).join('');
+  const m = nodes.find(t => t.n.id === state.menu);
+  const pop = m && !isTouchUi() ? `<div class="pop" style="left:${m.x - W / 2}px;top:${m.y + m.h / 2 + 6}px">${menuButtons(m.n, 'btn tiny')}</div>` : '';
+  document.getElementById('world').innerHTML = `<svg id="edges">${paths}</svg>${nodes.map(nodeHtml).join('')}${pop}`;
+  applyView();
+  const inl = document.getElementById('inl');
+  if (inl) { inl.focus(); inl.select(); }
+}
+function renderSheet() {
+  const el = document.getElementById('sheet'); let html = '';
+  const m = state.menu && isTouchUi() && locate(state.menu);
+  if (m) html = `<div class="title">${esc(m.item.text)}</div>${menuButtons(m.item, 'btn act')}<button class="btn act" data-a="cancel">Close</button>`;
+  else if (state.sheet && state.sheet.kind === 'del') { const it = locate(state.sheet.id).item; html = `<div class="title">Delete "${esc(it.text)}"${it.children.length ? ` and ${desc(it).length} items under it` : ''}?</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" data-a="cancel">Cancel</button><button class="btn on" data-a="delYes" data-id="${it.id}">Delete</button></div>`; }
+  else if (state.sheet && state.sheet.kind === 'due') html = `<div class="title">Due date</div><input type="date" id="sh-due" value="${state.sheet.due}">
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" data-a="cancel">Cancel</button><button class="btn on" data-a="save">Save</button></div>`;
+  else if (state.sheet) {
+    const sh = state.sheet, label = sh.isNew ? `New ${sh.type}` + (sh.parentId ? ` under "${esc(locate(sh.parentId).item.text)}"` : '') : `Edit ${sh.type}`;
+    html = `<div class="title">${label}</div><textarea id="sh-text" placeholder="Type here…">${esc(sh.text)}</textarea>
+      ${sh.type === 'task' ? `<label style="font-size:13px;color:var(--muted)">Due date (optional) <input type="date" id="sh-due" value="${sh.due}"></label>` : ''}
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" data-a="cancel">Cancel</button><button class="btn on" data-a="save">Save</button></div>`;
+  }
+  el.innerHTML = html; el.classList.toggle('open', !!html);
+  const ta = document.getElementById('sh-text'); if (ta) setTimeout(() => ta.focus(), 0);
+}
+function render(fitAfter) {
+  H = isTouchUi() ? 54 : 46; NH = isTouchUi() ? 42 : 36;
+  document.getElementById('frame').className = 'frame' + (state.phone ? ' phone' : '') + (isTouchUi() ? ' touch' : '');
+  document.getElementById('hdr').innerHTML = `<h1>Workspace</h1>
+    <select id="ws">${state.workspaces.map(w => `<option value="${w.id}" ${w.id === state.ws ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select>
+    <span class="grow"></span><button class="btn" data-a="layout" title="Switch layout">${state.layout === 'A' ? '→ tree' : '↓ tree'}</button>`;
+  renderMap(); renderSheet();
+  const v = VARIANTS.find(v => v[0] === state.variant);
+  document.getElementById('vlabel').textContent = v[1];
+  document.getElementById('wbtn').textContent = state.phone ? 'Phone' : 'Full width';
+  if (fitAfter) requestAnimationFrame(fit);
+}
+
+// ---------- pan / pinch / zoom / long-press ----------
+const vp = document.getElementById('vp');
+function applyView() { document.getElementById('world').style.transform = `translate(${view.tx}px,${view.ty}px) scale(${view.s})`; }
+function fit() {
+  if (!nodes.length) return;
+  const minX = Math.min(...nodes.map(t => t.x - W / 2)), maxX = Math.max(...nodes.map(t => t.x + W / 2));
+  const minY = Math.min(...nodes.map(t => t.y - t.h / 2)), maxY = Math.max(...nodes.map(t => t.y + t.h / 2));
+  const r = vp.getBoundingClientRect(), pad = 30;
+  const fitS = Math.min(1.2, (r.width - pad) / (maxX - minX), (r.height - pad) / (maxY - minY));
+  view.s = Math.max(MIN_S, fitS);
+  if (fitS >= MIN_S) { view.tx = (r.width - (maxX - minX) * view.s) / 2 - minX * view.s; view.ty = (r.height - (maxY - minY) * view.s) / 2 - minY * view.s; }
+  else { view.tx = pad / 2 - minX * view.s; view.ty = pad / 2 - minY * view.s; }
+  applyView();
+}
+function zoomAt(k, cx, cy) {
+  const r = vp.getBoundingClientRect(); cx = cx ?? r.width / 2; cy = cy ?? r.height / 2;
+  const s = Math.min(2.5, Math.max(0.15, view.s * k)); k = s / view.s;
+  view.tx = cx - (cx - view.tx) * k; view.ty = cy - (cy - view.ty) * k; view.s = s; applyView();
+}
+const pts = new Map(); let drag = null, pinch = null, press = null, suppressClick = false;
+const rel = e => { const r = vp.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+function startPinch() {
+  const [a, b] = [...pts.values()], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  pinch = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: view.s, wx: (mid.x - view.tx) / view.s, wy: (mid.y - view.ty) / view.s };
+  drag = null; cancelPress();
+}
+function cancelPress() { if (press) { clearTimeout(press.timer); press.el.classList.remove('pressing'); press = null; } }
+vp.addEventListener('pointerdown', e => {
+  pts.set(e.pointerId, rel(e));
+  if (pts.size === 2) { startPinch(); return; }
+  const nodeEl = e.target.closest('[data-node]');
+  if (nodeEl && !e.target.closest('input,button')) {
+    nodeEl.classList.add('pressing');
+    press = { el: nodeEl, id: nodeEl.dataset.node, x: e.clientX, y: e.clientY, timer: setTimeout(() => {
+      state.menu = press.id; suppressClick = true; if (navigator.vibrate) navigator.vibrate(15); say('long-press → menu'); cancelPress(); render();
+    }, 500) };
+  }
+  if (!e.target.closest('.node,.pop,#sheet,button,select,input,textarea')) {
+    drag = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty };
+    if (state.menu || state.sheet) { state.menu = null; state.sheet = null; render(); }
+    if (state.editing) { commitInline(document.getElementById('inl')?.value || ''); render(); }
+  }
+});
+vp.addEventListener('pointermove', e => {
+  if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, rel(e));
+  if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 8) cancelPress();
+  if (pinch && pts.size === 2) {
+    const [a, b] = [...pts.values()], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    view.s = Math.min(2.5, Math.max(0.15, pinch.s0 * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d0));
+    view.tx = mid.x - pinch.wx * view.s; view.ty = mid.y - pinch.wy * view.s; applyView(); say('pinch zoom ' + view.s.toFixed(2));
+    return;
+  }
+  if (drag) { view.tx = drag.tx + e.clientX - drag.x; view.ty = drag.ty + e.clientY - drag.y; applyView(); }
+});
+const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) drag = null; cancelPress(); };
+vp.addEventListener('pointerup', up); vp.addEventListener('pointercancel', up);
+vp.addEventListener('contextmenu', e => e.preventDefault());
+vp.addEventListener('wheel', e => { e.preventDefault(); const p = rel(e); zoomAt(Math.exp(-e.deltaY * 0.0015), p.x, p.y); }, { passive: false });
+
+// ---------- events ----------
+document.addEventListener('click', e => {
+  if (suppressClick) { suppressClick = false; e.preventDefault(); return; }
+  const el = e.target.closest('[data-a]'); if (!el || !actions[el.dataset.a]) return;
+  const r = actions[el.dataset.a](el.dataset.id, el);
+  if (r === 'nr') return;
+  render(r === 'fit');
+});
+document.addEventListener('dblclick', e => { const t = e.target.closest('[data-edit]'); if (t) { startEdit(t.dataset.edit); render(); } });
+document.addEventListener('keydown', e => {
+  if (e.target.id === 'inl') { if (e.key === 'Enter') { commitInline(e.target.value); render(); } if (e.key === 'Escape') { state.editing.isNew ? commitInline('') : (state.editing = null); render(); } return; }
+  if (e.target.matches('input,textarea,select')) return;
+  if (e.key === 'ArrowLeft') { cycle(-1); render(true); } if (e.key === 'ArrowRight') { cycle(1); render(true); }
+});
+document.addEventListener('focusout', e => { if (e.target.id === 'inl' && state.editing) { const v = e.target.value; setTimeout(() => { if (state.editing) { commitInline(v); render(); } }, 120); } });
+document.addEventListener('change', e => { if (e.target.id === 'ws') { state.ws = e.target.value; state.menu = null; render(true); } });
+window.addEventListener('resize', () => fit());
+render(true);
+</script>
