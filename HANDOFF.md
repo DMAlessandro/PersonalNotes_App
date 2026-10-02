@@ -14,11 +14,11 @@
 
 ## 1. Primary Goal
 
-A personal notes/tasks PWA for one user (a researcher) on a Windows laptop and an Android phone. It works like a messaging app (Projects → Tasks → Subtasks/Notes), has a Map view (an automatic tree of a Workspace), and stores its data as files in the user's private GitHub repo with a manual **Push** button. The current destination is a **buildable spec** (`.scratch/personal-note-app/spec.md`, not written yet) that the user reviews before any production code is written. The user wants to review every decision; never settle a user-facing choice alone.
+A personal notes/tasks PWA for one user (a researcher) on a Windows laptop and an Android phone. It works like a messaging app (Projects → Tasks → Subtasks/Notes), has a Map view (an automatic tree of a Workspace), and stores its data as files in the user's private GitHub repo with a manual **Push** button. The buildable spec (`.scratch/personal-note-app/spec.md`) is written and approved; the build follows its slices (§8). The user wants to review every decision; never settle a user-facing choice alone.
 
 ## 2. Completed Work
 
-- **Planning ("wayfinder" method):** 11 of 12 tickets are resolved. Only **12 — Write the buildable spec and build slices** is open.
+- **Planning ("wayfinder" method):** all 12 tickets are resolved. **`spec.md` approved 2026-10-02** (user: "ok continue", read as accepting all 18 open points in its §11; #15 Notes in List view = dashed outline, agent's pick).
   - Ticket conventions: each file has `Type:`, `Status: open|claimed|resolved` and `Blocked by: NN`. A resolution goes under `## Answer`, plus one gist line in `map.md` → "Decisions so far".
   - With the `mattpocock-skills` plugin, run `/wayfinder .scratch/personal-note-app/map.md`. Without it, follow these conventions by hand.
 - **Prototypes:**
@@ -47,12 +47,7 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
   - "Bottom-panel editing on phone" → edit on the box.
   - "Monthly change log" → weekly files.
   - "Mind map = message type / free canvas" (original plan) → automatic tree view of a Workspace.
-- **Agent defaults the user hasn't explicitly confirmed** (flag them in the spec review):
-  - A Cross-out on one device plus a text edit on the other don't clash.
-  - Data files are named by Project id.
-  - The search icon sits in the top bar.
-  - A Change-log Cross-out entry offers "Un-cross".
-  - The stack choices in ticket 08 (React/TS/Vite, vite-plugin-pwa, idb, Zustand, Vitest).
+- **Spec open points** (spec §11) were accepted wholesale with a short "ok continue". If the user later objects to one, treat it as a change, not a mistake, and update the spec.
 - **Never verified:**
   - Any real GitHub API call.
   - That Android Chrome grants persistent storage to the installed PWA.
@@ -70,20 +65,13 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 
 ## 5. Exact Next Step
 
-**Resolve ticket 12: write `.scratch/personal-note-app/spec.md`.**
+**Before slice 1 (spec §8): create the repos.**
 
-1. Read `map.md`, every ticket's `## Answer`, and `CONTEXT.md`.
-2. Write one spec covering:
-   - the data model and the repo file formats (with JSON examples)
-   - ordering, crossing-out and deleting rules
-   - each screen: Project list, Cards List view, Map view, Search, Change log, resolver, Settings/token, first-run setup
-   - Pull, merge and Push behaviour, with the edge cases from ticket 05
-   - the stack, hosting and deploy
-3. Then add **build slices**. Each slice is a thin, end-to-end piece the user can try on laptop and phone, with a checkpoint. Put the pure logic (ordering, crossing out, three-way merge) in early slices, written test-first.
-4. List the "agent defaults" from §3 in an **Open points** section for the user to confirm.
-5. Ask the user to review it. After approval, set ticket 12 `Status: resolved`, add its line to `map.md`, and commit.
+1. The user creates (or allows the agent to create with `gh`) the **public** `PersonalNotes_App` repo and the **private** `PersonalNotes` repo. Note: `.scratch/` planning files become public with `PersonalNotes_App`.
+2. Push this local repo to `PersonalNotes_App` and turn on Pages (source: GitHub Actions).
+3. The user makes the fine-grained token (only `PersonalNotes`, Contents: Read and write). Not needed until slice 4.
 
-Then, in priority order: create the two GitHub repos and the fine-grained token (the user must do the token step) · push this repo to `PersonalNotes_App` · build slice 1.
+Then build **slice 1 — Shell on Pages** (spec §8), test-first where there is logic, and hand the user the checkpoint.
 
 ---
 

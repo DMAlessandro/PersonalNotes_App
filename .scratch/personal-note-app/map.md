@@ -32,6 +32,7 @@ A buildable spec at `.scratch/personal-note-app/spec.md`: every design decision 
 - [Change log screen](issues/09-change-log-screen.md): per-Project Log + global Change log; grouped by week, newest first; restoring a Delete brings back missing parents/Projects too; entries are permanent.
 - [Search across Projects](issues/10-search.md): all Projects (current Workspace first); Item text, crossed-out matches shown dimmed; one "Has due date" filter; a result jumps to the Item in the List view.
 - [Map view touch interactions on a phone](issues/11-map-touch-interactions.md): edit text directly on the box (multi-line, Enter saves); one-finger pan, pinch-zoom, long-press for the menu; boxes shrink-wrap their full text up to ~210px and never split a word.
+- [Write the buildable spec and build slices](issues/12-write-spec.md): [spec.md](spec.md) approved; flat per-id records + fractional order keys; field-level three-way merge with structure repair; 9 slices (shell → outline → cross/delete/log → GitHub → merge → Workspaces/Search → Map laptop → Map phone → polish); all 18 open points accepted.
 
 ## Not yet specified
 
