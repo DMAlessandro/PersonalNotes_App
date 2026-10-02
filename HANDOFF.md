@@ -27,8 +27,8 @@ A personal notes/tasks PWA for one user (a researcher) on a Windows laptop and a
   - `map-touch-prototype.html`: the latest and most faithful; it has the box-sizing and touch rules.
   - To view a prototype locally, double-click it. Add `?phone` to the touch prototype's URL to force phone mode.
   - A published copy of the touch prototype is private to the original Claude account, so other accounts can't open it. Use the local file.
-- **Git:** this folder is a local git repo on `main`, not pushed anywhere. **No GitHub repos exist yet.**
-- **No app code exists yet.**
+- **GitHub (2026-10-02):** public `DMAlessandro/PersonalNotes_App` (this folder, `origin`) and private `DMAlessandro/PersonalNotes` (empty) exist. Pages deploys via `.github/workflows/deploy.yml` (test → build → deploy) to https://dmalessandro.github.io/PersonalNotes_App/. The fine-grained token is **not made yet** (user's step, needed by slice 4).
+- **Slice 1 (Shell on Pages) built and deployed:** Vite 8 + React 19 + TS 7, vite-plugin-pwa (generateSW), Vitest, production-only CSP meta (`vite.config.ts`), PNG icons from `scripts/make-icons.mjs`, top bar placeholders (`src/ui/TopBar.tsx`). On phones the badge shows the bare count and Push says "Set up". Checked by screenshots at 360/412px and laptop width; **not yet checked by the user on the phone** (install + offline).
 
 ## 3. Active Decisions & Constraints
 
@@ -65,13 +65,8 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 
 ## 5. Exact Next Step
 
-**Before slice 1 (spec §8): create the repos.**
-
-1. The user creates (or allows the agent to create with `gh`) the **public** `PersonalNotes_App` repo and the **private** `PersonalNotes` repo. Note: `.scratch/` planning files become public with `PersonalNotes_App`.
-2. Push this local repo to `PersonalNotes_App` and turn on Pages (source: GitHub Actions).
-3. The user makes the fine-grained token (only `PersonalNotes`, Contents: Read and write). Not needed until slice 4.
-
-Then build **slice 1 — Shell on Pages** (spec §8), test-first where there is logic, and hand the user the checkpoint.
+1. Wait for the user's slice-1 checkpoint (spec §8): open the Pages URL on laptop and phone, install it on the phone's home screen, open it offline. Fix anything they report.
+2. Then build **slice 2 — Outline core (local)** (spec §8), test-first: `src/domain/` model, ids, fractional order keys, §4.1 ordering, §4.4 edits, §2.1 structure rules; then the Project list, Cards List view and IndexedDB Save. Use `list-view-prototype.html` (variant C) as the look.
 
 ---
 
