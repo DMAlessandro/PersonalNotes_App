@@ -29,6 +29,8 @@ A personal notes/tasks PWA for one user (a researcher) on a Windows laptop and a
   - A published copy of the touch prototype is private to the original Claude account, so other accounts can't open it. Use the local file.
 - **GitHub (2026-10-02):** public `DMAlessandro/PersonalNotes_App` (this folder, `origin`) and private `DMAlessandro/PersonalNotes` (empty) exist. Pages deploys via `.github/workflows/deploy.yml` (test → build → deploy) to https://dmalessandro.github.io/PersonalNotes_App/. The fine-grained token is **not made yet** (user's step, needed by slice 4).
 - **Slice 1 (Shell on Pages) built and deployed:** Vite 8 + React 19 + TS 7, vite-plugin-pwa (generateSW), Vitest, production-only CSP meta (`vite.config.ts`), PNG icons from `scripts/make-icons.mjs`, top bar placeholders (`src/ui/TopBar.tsx`). On phones the badge shows the bare count and Push says "Set up". Checked by screenshots at 360/412px and laptop width; **not yet checked by the user on the phone** (install + offline).
+- **Slice 2 (Outline core, local) built and deployed 2026-10-02:** pure domain in `src/domain/` (model, fractional `orderKey`, `ordering`, `edits`, `structure`; 41 Vitest tests), IndexedDB Save (`src/store/db.ts`) + Zustand (`store.ts`, `ui.ts`), UI in `src/ui/` (ProjectList, ProjectView cards, ItemNode, Panel, TextEditor, useDrag). Checked with a Playwright script driving Edge (laptop and 412px). Choices made: editing starts with double-click/double-tap or menu -> Edit (as in the touch prototype); drag uses a handle on both devices (not long-press-drag); tick boxes are shown but disabled until slice 3; the unpushed badge stays 0 until slice 4.
+- The user did the slice-1 phone checkpoint: installed and offline both work.
 
 ## 3. Active Decisions & Constraints
 
@@ -65,8 +67,10 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 
 ## 5. Exact Next Step
 
-1. Wait for the user's slice-1 checkpoint (spec §8): open the Pages URL on laptop and phone, install it on the phone's home screen, open it offline. Fix anything they report.
-2. Then build **slice 2 — Outline core (local)** (spec §8), test-first: `src/domain/` model, ids, fractional order keys, §4.1 ordering, §4.4 edits, §2.1 structure rules; then the Project list, Cards List view and IndexedDB Save. Use `list-view-prototype.html` (variant C) as the look.
+1. Wait for the user's slice-2 checkpoint (spec section 8) on laptop and phone. Fix what they report.
+2. Then build **slice 3 - Cross out, Delete, Change log** (spec section 8), test-first in `src/domain/`: cross/un-cross with `crossSnap`, down-to-bottom, Delete (only when crossed), Change-log entries per ISO week, restore-the-chain. UI: enable the tick box, menu entries, in-app Delete confirmation, per-Project Log and global Change log.
+
+Tooling note: long heredocs in the Bash tool sometimes fail with "unexpected EOF"; use the Write tool for new files.
 
 ---
 
