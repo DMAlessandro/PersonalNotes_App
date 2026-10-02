@@ -396,3 +396,10 @@ main.map { flex: 1; min-height: 0; display: flex; flex-direction: column; positi
   .m-fold { width: 24px; font-size: 15px; line-height: 22px; }
   .m-more { font-size: 22px; padding: 0 6px; line-height: 22px; }
 }
+
+/* ---- Polish (slice 9) ----------------------------------------------------------- */
+/* Keyboard focus is always visible; mouse and touch clicks don't show it. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.offline { flex: none; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--amber); color: #fff; }
+.toast .secondary { color: var(--text); flex: none; }
+.map-empty { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); max-width: calc(100% - 32px); text-align: center; color: var(--muted); font-size: 14px; pointer-events: none; }

@@ -26,6 +26,23 @@ export function Panel({ anchor, onClose, children, label }: Props) {
     setPos({ left, top });
   }, [popover, anchor]);
 
+  // Keyboard: move focus into the panel (unless a field there took it) and give it back when it closes.
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null;
+    const el = ref.current;
+    // Next frame: a popover is hidden until it has been placed, and hidden buttons can't take focus.
+    const raf = requestAnimationFrame(() => {
+      if (el && !el.contains(document.activeElement)) el.querySelector<HTMLElement>('button, input, select, textarea')?.focus({ preventScroll: true });
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      // Only if nothing else took focus meanwhile (e.g. "Edit" just opened a text field).
+      const now = document.activeElement;
+      const free = !now || now === document.body || (el?.contains(now) ?? false);
+      if (free && before && document.contains(before)) before.focus({ preventScroll: true });
+    };
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);

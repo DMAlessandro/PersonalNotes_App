@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useEscape } from './useEscape';
 import { search, type SearchResult } from '../domain/search';
 import { useStore } from '../store/store';
 import { useUi } from '../store/ui';
@@ -27,6 +28,7 @@ function Marked({ text, q }: { text: string; q: string }) {
  * Full screen on a phone, a side panel on a laptop. Tapping a result jumps to it.
  */
 export function Search({ onClose, onJump }: { onClose: () => void; onJump: (r: SearchResult) => void }) {
+  useEscape(onClose);
   const data = useStore((s) => s.data);
   const workspace = useUi((s) => s.workspace);
   const [q, setQ] = useState('');

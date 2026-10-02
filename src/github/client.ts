@@ -54,6 +54,7 @@ export class GitHubClient implements Git {
   constructor(
     private readonly cfg: RepoConfig,
     private readonly fetchFn: typeof fetch = (...a) => fetch(...a),
+    private readonly clock: () => number = Date.now,
   ) {}
 
   private url(path: string) {
@@ -83,7 +84,12 @@ export class GitHubClient implements Git {
       const ra = res.headers.get('retry-after');
       const remaining = res.headers.get('x-ratelimit-remaining');
       if (res.status === 429 || ra || remaining === '0') {
-        throw new GitHubError('rate', 'GitHub asked the app to slow down. Try again in a minute.', res.status, ra ? Number(ra) : null);
+        // Seconds to wait: retry-after, or until the limit resets (an epoch time in seconds).
+        const reset = Number(res.headers.get('x-ratelimit-reset'));
+        const wait = ra ? Number(ra) : reset ? Math.max(0, Math.round(reset - this.clock() / 1000)) : null;
+        const mins = wait === null ? 1 : Math.ceil(wait / 60);
+        const when = mins <= 1 ? 'a minute' : `${mins} minutes`;
+        throw new GitHubError('rate', `GitHub asked the app to slow down. Try again in ${when}.`, res.status, wait);
       }
       throw new GitHubError('forbidden', 'The token cannot do this. Check it has Contents: Read and write on this repo.', 403);
     }

@@ -11,7 +11,8 @@ import { deviceName } from './device';
 import { loadSettings, loadToken } from './settings';
 import { useStore } from './store';
 
-export type Notice = { kind: 'info' | 'error'; text: string; at: number };
+/** `settings`: the message offers a button that opens Settings (e.g. to paste a new token). */
+export type Notice = { kind: 'info' | 'error'; text: string; at: number; action?: 'settings' };
 
 type Sync = {
   base: Base | null;
@@ -69,7 +70,9 @@ function stillThere(d: AppData, c: Clash): boolean {
 }
 
 export const useSync = create<Sync>((set, get) => {
-  const note = (kind: Notice['kind'], text: string) => set({ notice: { kind, text, at: Date.now() } });
+  const note = (kind: Notice['kind'], text: string, action?: Notice['action']) =>
+    set({ notice: { kind, text, at: Date.now(), ...(action ? { action } : {}) } });
+  const fail = (e: unknown) => note('error', describe(e), e instanceof GitHubError && (e.kind === 'auth' || e.kind === 'forbidden' || e.kind === 'notfound') ? 'settings' : undefined);
 
   async function setBase(base: Base | null) {
     set({ base });
@@ -144,7 +147,7 @@ export const useSync = create<Sync>((set, get) => {
           set({ choice: { remote: r.remote, base: r.base } });
         }
       } catch (e) {
-        if (!quiet || !(e instanceof GitHubError && e.kind === 'offline')) note('error', describe(e));
+        if (!quiet || !(e instanceof GitHubError && e.kind === 'offline')) fail(e);
       } finally {
         set({ busy: null });
         done();
@@ -183,7 +186,7 @@ export const useSync = create<Sync>((set, get) => {
           note('error', "Couldn't Push: the other device kept pushing at the same time. Try again.");
         }
       } catch (e) {
-        note('error', describe(e));
+        fail(e);
       } finally {
         set({ busy: null });
       }

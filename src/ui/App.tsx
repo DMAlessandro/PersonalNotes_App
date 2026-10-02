@@ -11,6 +11,7 @@ import { Resolver } from './Resolver';
 import { useUpdate } from '../store/update';
 import { TopBar, type ViewMode } from './TopBar';
 import { useWide } from './useWide';
+import { useOnline } from './useOnline';
 import { Search } from './Search';
 import { MapView } from './MapView';
 import { Workspaces } from './Workspaces';
@@ -35,6 +36,7 @@ export function App() {
   const unpushed = useUnpushed();
   const wide = useWide();
   const update = useUpdate();
+  const online = useOnline();
 
   useEffect(() => {
     void load();
@@ -44,13 +46,19 @@ export function App() {
 
   // Spec §6.1: Pull when the app opens and whenever it comes back to the foreground. No background polling.
   useEffect(() => {
-    if (loaded && sync.baseLoaded && configured) void sync.pullNow(true);
+    if (loaded && sync.baseLoaded && configured && navigator.onLine) void sync.pullNow(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, sync.baseLoaded, configured]);
+  // Offline: skip these automatic Pulls (they would only fail), and Pull quietly when the connection is back.
   useEffect(() => {
-    const onVisible = () => document.visibilityState === 'visible' && void useSync.getState().pullNow(true);
+    const quietPull = () => navigator.onLine && isConfigured() && void useSync.getState().pullNow(true);
+    const onVisible = () => document.visibilityState === 'visible' && quietPull();
     document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', quietPull);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', quietPull);
+    };
   }, []);
 
   // Opening a Project (phone), a Change log or Settings is a history step, so Android's back gesture closes it.
@@ -132,6 +140,7 @@ export function App() {
         view={view}
         onViewChange={setView}
         unpushed={unpushed}
+        online={online}
         hasToken={configured}
         busy={sync.busy}
         onOpenLog={() => openLog(null)}
@@ -187,7 +196,7 @@ export function App() {
       {searchOpen && <Search onClose={closeSearch} onJump={jump} />}
       <FirstConnectChoice />
       <Resolver />
-      <Toast />
+      <Toast onSettings={openSettings} />
     </div>
   );
 }

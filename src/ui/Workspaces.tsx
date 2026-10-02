@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useEscape } from './useEscape';
 import { newId } from '../domain/ids';
 import { sortedProjectIds } from '../domain/ordering';
 import { addWorkspace, deleteWorkspace, renameWorkspace, setMember, sortedWorkspaces } from '../domain/workspaces';
@@ -39,6 +40,7 @@ function NewWorkspace({ onAdded }: { onAdded?: (wid: string) => void }) {
  * Every change is Saved at once, like any other edit.
  */
 export function Workspaces({ onClose }: { onClose: () => void }) {
+  useEscape(onClose);
   const data = useStore((s) => s.data);
   const apply = useStore((s) => s.apply);
   const { workspace, setWorkspace } = useUi();

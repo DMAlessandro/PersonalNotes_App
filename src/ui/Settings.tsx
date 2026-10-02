@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useEscape } from './useEscape';
 import { GitHubClient, GitHubError } from '../github/client';
 import { deviceName, setDeviceName } from '../store/device';
 import { loadSettings, loadToken, saveSettings, saveToken, type GitHubSettings } from '../store/settings';
@@ -22,6 +23,7 @@ export async function askPersistence(): Promise<Persist> {
 
 /** Spec §5.7 Settings, which is also the first-run set-up (§5.8) when GitHub isn't configured yet. */
 export function Settings({ onClose }: { onClose: () => void }) {
+  useEscape(onClose);
   const saved = loadSettings();
   const savedToken = loadToken();
   const [device, setDevice] = useState(deviceName());

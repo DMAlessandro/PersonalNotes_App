@@ -428,6 +428,11 @@ export function MapView() {
         onPointerUp={(e) => endPointer(e.pointerId)}
         onPointerCancel={(e) => endPointer(e.pointerId)}
       >
+        {tree.kids.length === 0 && (
+          <p className="map-empty">
+            {workspace ? 'No Projects in this Workspace yet.' : 'No Projects yet.'} Use “+ Project” on the blue pill to add one.
+          </p>
+        )}
         <div className="map-world" style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.s})` }}>
           <svg className="map-edges" width={lay.width} height={lay.height} aria-hidden="true">
             {lay.edges.map((e) => byKey[e.from] && byKey[e.to] && <path key={e.to} d={edgePath(byKey[e.from], byKey[e.to], dir)} />)}

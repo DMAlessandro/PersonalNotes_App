@@ -1,4 +1,5 @@
 import { groupByWeek, weekLabel } from '../domain/changelog';
+import { useEscape } from './useEscape';
 import { canRestore, canUncrossEntry, restore, uncrossEntry } from '../domain/lifecycle';
 import type { LogEntry } from '../domain/model';
 import { todayLocal } from '../domain/time';
@@ -17,6 +18,7 @@ const ACTION: Record<LogEntry['action'], string> = {
  * which includes Deleted Projects. Grouped by week, newest first. Entries are permanent.
  */
 export function ChangeLog({ pid, onClose }: { pid: string | null; onClose: () => void }) {
+  useEscape(onClose);
   const log = useStore((s) => s.data.log);
   const data = useStore((s) => s.data);
   const apply = useStore((s) => s.apply);

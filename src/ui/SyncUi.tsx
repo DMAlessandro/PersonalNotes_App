@@ -13,7 +13,7 @@ export function useUnpushed(): number {
 }
 
 /** Short messages after Pull / Push. Info fades; errors stay until closed. */
-export function Toast() {
+export function Toast({ onSettings }: { onSettings: () => void }) {
   const { notice, dismiss } = useSync();
   useEffect(() => {
     if (notice?.kind !== 'info') return;
@@ -24,6 +24,17 @@ export function Toast() {
   return (
     <div className={`toast ${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
       <span>{notice.text}</span>
+      {notice.action === 'settings' && (
+        <button
+          className="secondary small"
+          onClick={() => {
+            dismiss();
+            onSettings();
+          }}
+        >
+          Settings
+        </button>
+      )}
       <button className="icon-btn" aria-label="Dismiss" onClick={dismiss}>
         ×
       </button>

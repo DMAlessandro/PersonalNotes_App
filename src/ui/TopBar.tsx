@@ -7,6 +7,7 @@ type Props = {
   view: ViewMode;
   onViewChange: (v: ViewMode) => void;
   unpushed: number;
+  online: boolean;
   hasToken: boolean;
   busy: 'pull' | 'push' | null;
   onOpenLog: () => void;
@@ -24,7 +25,7 @@ const EDIT = '__edit';
 
 // Spec §5: menu, Workspace picker, List/Map switch, search, "N unpushed" badge (always visible), Push.
 export function TopBar(props: Props) {
-  const { view, onViewChange, unpushed, hasToken, busy, onOpenLog, onOpenSettings, onPush, onRefresh } = props;
+  const { view, onViewChange, unpushed, online, hasToken, busy, onOpenLog, onOpenSettings, onPush, onRefresh } = props;
   const { workspaces, workspace, onWorkspace, onOpenWorkspaces, onSearch } = props;
   const [menu, setMenu] = useState<DOMRect | null>(null);
   return (
@@ -74,6 +75,11 @@ export function TopBar(props: Props) {
           <path d="M15 15l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       </button>
+      {!online && (
+        <span className="offline" title="No connection. Everything is saved on this device; Push when you are back online.">
+          Offline
+        </span>
+      )}
       <span className="badge" title={`${unpushed} unpushed changes`}>
         {unpushed}
         <span className="wide-only"> unpushed</span>

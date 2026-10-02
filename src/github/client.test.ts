@@ -84,4 +84,25 @@ describe('GitHubClient', () => {
     expect(new TextDecoder().decode(Uint8Array.from(atob(body.content), (c) => c.charCodeAt(0)))).toBe('città ✓\n');
     expect(seen[0].url).toBe('https://api.github.com/repos/me/PersonalNotes/contents/data/index.json');
   });
+  it('says when to try again after a rate limit: retry-after, or the reset time', async () => {
+    const now = Date.parse('2026-10-02T12:00:00Z');
+    const err = async (r: Reply) => {
+      try {
+        await new GitHubClient(cfg, fakeFetch([r]).fn, () => now).getHead();
+      } catch (e) {
+        return e as GitHubError;
+      }
+      throw new Error('no error');
+    };
+    expect((await err({ status: 429, headers: { 'retry-after': '90' } })).message).toBe(
+      'GitHub asked the app to slow down. Try again in 2 minutes.',
+    );
+    const reset = String(Math.floor(now / 1000) + 20 * 60);
+    const e = await err({ status: 403, headers: { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': reset } });
+    expect(e.retryAfter).toBe(1200);
+    expect(e.message).toBe('GitHub asked the app to slow down. Try again in 20 minutes.');
+    expect((await err({ status: 429, headers: { 'retry-after': '30' } })).message).toBe(
+      'GitHub asked the app to slow down. Try again in a minute.',
+    );
+  });
 });
