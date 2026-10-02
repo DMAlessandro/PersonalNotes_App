@@ -3,8 +3,9 @@ import { useRef, type MouseEvent, type PointerEvent } from 'react';
 const DELAY = 500;
 const SLOP = 10; // px a finger may wander before it counts as a scroll
 
-// Fingers on the screen right now, for the whole app: a second finger (a pinch) cancels any long-press.
-const touches = new Set<number>();
+// Fingers on the screen right now, for the whole app, with where each one is. Followed here rather than on
+// the row, because the Map may capture a finger for a pinch and then the row never hears it move or lift.
+const touches = new Map<number, { x: number; y: number }>();
 /** Goes up whenever a second finger lands; a press that saw it change is not a long-press. */
 let pinches = 0;
 if (typeof window !== 'undefined') {
@@ -14,8 +15,15 @@ if (typeof window !== 'undefined') {
       if (e.pointerType !== 'touch') return;
       // The first finger of a new touch: any finger still counted was lifted without us hearing it.
       if (e.isPrimary) touches.clear();
-      touches.add(e.pointerId);
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (touches.size > 1) pinches++;
+    },
+    true,
+  );
+  window.addEventListener(
+    'pointermove',
+    (e) => {
+      if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     },
     true,
   );
@@ -49,12 +57,19 @@ export function useLongPress(onLongPress: (el: HTMLElement) => void) {
       fired.current = false;
       if (!touching.current) return;
       if ((e.target as HTMLElement).closest('.handle, textarea, input, a, [role=dialog]')) return;
+      // A finger that lands while another is down is part of a pinch, never a long-press.
+      if (touches.size > 1) return;
       const el = e.currentTarget;
-      start.current = { x: e.clientX, y: e.clientY };
+      const id = e.pointerId;
+      const at = { x: e.clientX, y: e.clientY };
+      start.current = at;
       const seen = pinches;
       timer.current = window.setTimeout(() => {
         timer.current = null;
-        if (touches.size > 1 || pinches !== seen) return;
+        // Still exactly this one finger, never joined by another, and it hasn't wandered off.
+        const now = touches.get(id);
+        if (!now || touches.size > 1 || pinches !== seen) return;
+        if (Math.hypot(now.x - at.x, now.y - at.y) > SLOP) return;
         fired.current = true;
         navigator.vibrate?.(15);
         onLongPress(el);
