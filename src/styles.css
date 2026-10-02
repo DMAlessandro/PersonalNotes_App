@@ -1,0 +1,85 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --text: #1c2330;
+  --muted: #6b7584;
+  --line: #dde1e7;
+  --accent: #2f6fde;
+  --accent-text: #ffffff;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171c;
+    --card: #1d2128;
+    --text: #e6e9ee;
+    --muted: #9099a6;
+    --line: #2e343d;
+    --accent: #5b8ff0;
+    --accent-text: #0d1117;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+button, select { font: inherit; color: inherit; }
+
+.app { display: flex; flex-direction: column; height: 100%; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.spacer { flex: 1; }
+.topbar > :not(.workspace):not(.spacer) { flex-shrink: 0; }
+.icon-btn {
+  display: grid; place-items: center;
+  width: 36px; height: 36px; padding: 0;
+  border: 0; border-radius: 8px;
+  background: transparent; font-size: 18px; cursor: pointer;
+}
+.icon-btn:disabled { opacity: .45; cursor: default; }
+.workspace {
+  flex: 0 1 auto; min-width: 92px; max-width: 40vw;
+  padding: 6px 8px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--card);
+}
+.switch { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.switch button { border: 0; padding: 6px 10px; background: transparent; cursor: pointer; }
+.switch button[aria-pressed='true'] { background: var(--accent); color: var(--accent-text); }
+.badge {
+  font-size: 12px; color: var(--muted);
+  padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px;
+  white-space: nowrap;
+}
+.push {
+  padding: 6px 12px; border: 0; border-radius: 8px;
+  background: var(--accent); color: var(--accent-text); white-space: nowrap;
+}
+.push:disabled { opacity: .55; }
+
+.empty { flex: 1; display: grid; place-content: center; text-align: center; padding: 24px 16px; }
+.empty-title { font-size: 18px; margin: 0 0 4px; }
+.empty-hint { color: var(--muted); margin: 0; }
+
+/* Phone: keep everything on one row by shortening what can shrink. */
+@media (max-width: 480px) {
+  .topbar { gap: 4px; padding-left: 6px; padding-right: 6px; }
+  .switch button { padding: 6px 8px; }
+  .badge { min-width: 22px; padding: 2px 6px; text-align: center; }
+  .push { padding: 6px 8px; }
+  .spacer { display: none; }
+  .wide-only { display: none; }
+}
