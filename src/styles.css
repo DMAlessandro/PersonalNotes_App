@@ -269,3 +269,31 @@ main.single .project-list { border-right: 0; flex: 1; }
 .log-sub { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
 .log-sub:empty { display: none; }
 .log-note { font-size: 12px; color: var(--green); }
+
+/* ---- Sync (spec 5.7, 6) --------------------------------------------------- */
+.push.busy { opacity: .7; }
+.banner.warn { background: var(--amber); color: #fff; }
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: max(88px, calc(env(safe-area-inset-bottom) + 88px)); z-index: 30;
+  display: flex; align-items: center; gap: 6px; max-width: min(560px, calc(100% - 32px));
+  padding: 8px 6px 8px 14px; border-radius: 10px; box-shadow: var(--shadow);
+  background: var(--text); color: var(--bg); font-size: 14px;
+}
+.toast.error { background: var(--red); color: #fff; }
+.toast .icon-btn { color: inherit; flex: none; }
+.danger-text { color: var(--red); }
+
+.settings .log-body { display: grid; gap: 4px; align-content: start; }
+.intro { margin: 12px 4px 0; font-size: 14px; }
+.set { display: grid; gap: 8px; }
+.set-row { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.set-row .field { color: var(--text); }
+.token-saved { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--text); }
+.hint { margin: 0; font-size: 13px; color: var(--muted); }
+.hint-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hint a { color: var(--accent); }
+.hint code { font-size: 12px; background: var(--soft); padding: 0 4px; border-radius: 4px; }
+.test { margin: 0; font-size: 13px; }
+.test.ok { color: var(--green); }
+.test.bad { color: var(--red); }
+.sticky-actions { position: sticky; bottom: 0; padding: 12px 0 4px; background: var(--bg); margin-top: 12px; }

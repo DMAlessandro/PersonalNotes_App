@@ -2,6 +2,7 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import pkg from './package.json';
 
 // Spec §7: the token lives on this origin, so the built app only talks to itself and api.github.com.
 // Production only: the dev server injects inline scripts that this policy would block.
@@ -25,6 +26,7 @@ const csp: Plugin = {
 
 export default defineConfig({
   base: '/PersonalNotes_App/',
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [
     react(),
     csp,

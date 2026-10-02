@@ -32,6 +32,7 @@ A personal notes/tasks PWA for one user (a researcher) on a Windows laptop and a
 - **Slice 2 (Outline core, local) built and deployed 2026-10-02:** pure domain in `src/domain/` (model, fractional `orderKey`, `ordering`, `edits`, `structure`; 41 Vitest tests), IndexedDB Save (`src/store/db.ts`) + Zustand (`store.ts`, `ui.ts`), UI in `src/ui/` (ProjectList, ProjectView cards, ItemNode, Panel, TextEditor, useDrag). Checked with a Playwright script driving Edge (laptop and 412px). Choices made: editing starts with double-click/double-tap or menu -> Edit (as in the touch prototype); drag uses a handle on both devices (not long-press-drag); tick boxes are shown but disabled until slice 3; the unpushed badge stays 0 until slice 4.
 - **Slice 2 extras (user, 2026-10-02):** long-press opens the menu on touch (`src/ui/useLongPress.ts`); a Subtask button next to + with an "Under" picker.
 - **Slice 3 (Cross out, Delete, Change log) built 2026-10-02:** `src/domain/lifecycle.ts` (cross/un-cross with `crossSnap`, down-to-bottom, Delete only when crossed, restore-the-chain, Un-cross from log; Items and Projects), `src/domain/changelog.ts` (ISO weeks, labels, grouping); `AppData.log` holds entries by id, IndexedDB v2 adds a `log` store. UI: tick box, menus, in-app `Confirm`, `ChangeLog` panel (per-Project Log button, global in the ☰ menu), back gesture closes it. Timestamps now carry milliseconds. 73 tests; Playwright run on laptop and 412px.
+- **Slice 4 (GitHub: set-up, Pull, Push) built 2026-10-02:** `src/sync/` (files.ts repo layout + deterministic JSON, readable.ts, changes.ts unpushed count + commit message, engine.ts pull/push with first-connection and `blocked`), `src/github/client.ts` (fetch client, ETag kept with the head it describes, `gitBlobSha`), `src/store/sync.ts`, `settings.ts`, `src/ui/Settings.tsx`, `SyncUi.tsx`. IndexedDB v3 stores the base. **Verified against real GitHub**: `src/github/live.test.ts` (run with LIVE_REPO/LIVE_BRANCH/LIVE_TOKEN on a throwaway branch) and a two-browser Playwright run with CSP on; this found and fixed an ETag bug. `PersonalNotes` main holds one commit (`Laptop: set up PersonalNote`, empty index); test branches were deleted. The user has made their token.
 - The user did the slice-1 phone checkpoint: installed and offline both work.
 
 ## 3. Active Decisions & Constraints
@@ -53,7 +54,7 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
   - "Mind map = message type / free canvas" (original plan) → automatic tree view of a Workspace.
 - **Spec open points** (spec §11) were accepted wholesale with a short "ok continue". If the user later objects to one, treat it as a change, not a mistake, and update the spec.
 - **Never verified:**
-  - Any real GitHub API call.
+  - ~~Any real GitHub API call.~~ Verified 2026-10-02 (slice 4), with the gh CLI token, not yet with the user's fine-grained token.
   - That Android Chrome grants persistent storage to the installed PWA.
   - Long-press and pinch on a real device. The user tried the touch prototype and said it works well, but nothing was measured.
 
@@ -69,8 +70,8 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 
 ## 5. Exact Next Step
 
-1. Wait for the user's slice-3 checkpoint (spec section 8) on laptop and phone. Fix what they report.
-2. Then build **slice 4 - GitHub: first run, Pull, Push (one device)** (spec section 8, sections 5.7, 5.8, 6.1, 6.3). The user must make the fine-grained token first (only `PersonalNotes`, Contents: Read and write); the steps were given to them in chat on 2026-10-02. Device name: `src/store/device.ts` already guesses Phone/Laptop; Settings should let them set it.
+1. Wait for the user's slice-4 checkpoint: set up GitHub on the laptop (owner `DMAlessandro`, repo `PersonalNotes`, branch `main`, their token), Push, then the phone (Keep both / Use GitHub's), Push. Fix what they report.
+2. Then build **slice 5 - Merge and resolver** (spec 6.2, 5.6): replace the `blocked` outcome in `src/sync/engine.ts` `pull()` with the three-way merge, test-first, using `FakeGit` (`src/github/fakeGit.ts`) for engine tests. Confirm open point 19 with the user.
 
 Tooling note: long heredocs in the Bash tool sometimes fail with "unexpected EOF"; use the Write tool for new files.
 

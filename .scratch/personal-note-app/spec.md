@@ -342,6 +342,8 @@ Shown when no settings exist:
 
 The app can also be used with no token at all (local only); the Push button then says "Set up GitHub".
 
+**First connection of a device that already has Projects** (agent, 2026-10-02, built in slice 4): if GitHub holds no Projects yet, this device's data is kept and becomes unpushed. If both hold Projects, the app asks: **Keep both** (union; Push afterwards sends this device's) or **Use GitHub's only** (this device's are discarded). Closing the question leaves the device unconnected until the next Pull. **[open]**
+
 ---
 
 ## 6. Pull, merge and Push
@@ -507,3 +509,4 @@ New in this spec:
 16. The **Top-down** map switch is remembered per device.
 17. The app can be used **without a token** (local only) until GitHub is set up.
 18. A rejected Push retries **up to 3 times** before telling the user.
+19. **First connection when both this device and GitHub have Projects**: ask "Keep both" / "Use GitHub's only" (§5.8). *(Added 2026-10-02, after the spec was approved.)*

@@ -8,11 +8,15 @@ type Props = {
   onViewChange: (v: ViewMode) => void;
   unpushed: number;
   hasToken: boolean;
+  busy: 'pull' | 'push' | null;
   onOpenLog: () => void;
+  onOpenSettings: () => void;
+  onPush: () => void;
+  onRefresh: () => void;
 };
 
 // Spec §5: menu, Workspace picker, List/Map switch, search, "N unpushed" badge (always visible), Push.
-export function TopBar({ view, onViewChange, unpushed, hasToken, onOpenLog }: Props) {
+export function TopBar({ view, onViewChange, unpushed, hasToken, busy, onOpenLog, onOpenSettings, onPush, onRefresh }: Props) {
   const [menu, setMenu] = useState<DOMRect | null>(null);
   return (
     <header className="topbar">
@@ -21,7 +25,14 @@ export function TopBar({ view, onViewChange, unpushed, hasToken, onOpenLog }: Pr
       </button>
       {menu && (
         <Panel anchor={menu} onClose={() => setMenu(null)} label="Menu">
-          <Menu onClose={() => setMenu(null)} entries={[{ label: 'Change log', onSelect: onOpenLog }]} />
+          <Menu
+            onClose={() => setMenu(null)}
+            entries={[
+              { label: 'Change log', onSelect: onOpenLog },
+              hasToken && { label: 'Refresh (Pull now)', onSelect: onRefresh },
+              { label: hasToken ? 'Settings' : 'Set up GitHub', onSelect: onOpenSettings },
+            ]}
+          />
         </Panel>
       )}
       <select className="workspace" aria-label="Workspace" defaultValue="all">
@@ -46,9 +57,14 @@ export function TopBar({ view, onViewChange, unpushed, hasToken, onOpenLog }: Pr
         {unpushed}
         <span className="wide-only"> unpushed</span>
       </span>
-      <button className="push" disabled>
+      <button
+        className={busy ? 'push busy' : 'push'}
+        disabled={!!busy}
+        onClick={hasToken ? onPush : onOpenSettings}
+        title={busy === 'pull' ? 'Pulling from GitHub…' : busy === 'push' ? 'Pushing to GitHub…' : undefined}
+      >
         {hasToken ? (
-          'Push'
+          busy === 'push' ? 'Pushing…' : 'Push'
         ) : (
           <>
             Set up<span className="wide-only"> GitHub</span>
