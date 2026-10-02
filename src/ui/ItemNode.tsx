@@ -1,9 +1,11 @@
-import { useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import type { Item, ProjectDoc } from '../domain/model';
 import { children, progress } from '../domain/ordering';
 import {
-  addItem, canIndent, canOutdent, discardItem, editText, indent, makeTask, moveItem, outdent, setFolded,
+  addItem, canIndent, canMoveToProject, canOutdent, discardItem, editText, indent, makeTask, moveItem, moveToProject,
+  outdent, setFolded,
 } from '../domain/edits';
+import { shownProjectIds } from '../domain/workspaces';
 import { newId } from '../domain/ids';
 import { useStore } from '../store/store';
 import { useUi } from '../store/ui';
@@ -38,6 +40,9 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
   const [menu, setMenu] = useState<DOMRect | null>(null);
   const [dueOpen, setDueOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const flash = useUi((s) => s.flash === item.id);
+  const rowRef = useRef<HTMLDivElement>(null);
   const longPress = useLongPress((el) => setMenu(el.getBoundingClientRect()));
   const kids = children(doc, item.id);
   const prog = progress(doc, item.id);
@@ -87,6 +92,14 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
   const toggleCross = () =>
     apply((d, now) => (item.crossed ? uncross(d, pid, item.id, now) : crossOut(d, pid, item.id, now, deviceName())));
 
+  // Search jump: bring the Item into view and highlight it briefly (spec §5.4).
+  useEffect(() => {
+    if (!flash) return;
+    rowRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const t = window.setTimeout(() => useUi.getState().setFlash(null), 2000);
+    return () => window.clearTimeout(t);
+  }, [flash]);
+
   const dates = [
     `created ${shortDate(item.created)}`,
     item.edited.slice(0, 10) !== item.created.slice(0, 10) && `edited ${shortDate(item.edited)}`,
@@ -95,7 +108,7 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
   const under = countDescendants(doc, item.id);
 
   const row = (
-    <div className="row" {...(isEditing ? {} : longPress)}>
+    <div ref={rowRef} className={flash ? 'row flash' : 'row'} {...(isEditing ? {} : longPress)}>
       <button className="handle" aria-label="Drag to reorder" onPointerDown={dragHandle(item.id)}>
         ⠿
       </button>
@@ -191,11 +204,20 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
               canIndent(doc, item.id) && { label: 'Indent', onSelect: () => apply((d, now) => indent(d, pid, item.id, now)) },
               canOutdent(doc, item.id) && { label: 'Outdent', onSelect: () => apply((d, now) => outdent(d, pid, item.id, now)) },
               { label: item.crossed ? 'Un-cross' : 'Cross out', onSelect: toggleCross },
+              canMoveToProject(doc, item.id) && { label: 'Move to Project…', onSelect: () => setMoving(true) },
               item.crossed && !item.bottomed && { label: '↓ Move to bottom', onSelect: () => apply((d, now) => sendToBottom(d, pid, item.id, now)) },
               item.crossed && { label: 'Delete…', danger: true, onSelect: () => setConfirmDelete(true) },
             ]}
           />
         </Panel>
+      )}
+      {moving && (
+        <MoveSheet
+          pid={pid}
+          text={item.text}
+          onPick={(to) => apply((d, now) => moveToProject(d, pid, item.id, to, now))}
+          onClose={() => setMoving(false)}
+        />
       )}
       {dueOpen && <DueSheet pid={pid} item={item} onClose={() => setDueOpen(false)} />}
       {confirmDelete && (
@@ -208,5 +230,40 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
         />
       )}
     </div>
+  );
+}
+
+/** ⋯ → Move to Project…: the other Projects, the current Workspace's first (spec §4.4). */
+function MoveSheet({ pid, text, onPick, onClose }: { pid: string; text: string; onPick: (to: string) => void; onClose: () => void }) {
+  const data = useStore((s) => s.data);
+  const workspace = useUi((s) => s.workspace);
+  const here = shownProjectIds(data, workspace).filter((p) => p !== pid);
+  const rest = workspace ? shownProjectIds(data, null).filter((p) => p !== pid && !here.includes(p)) : [];
+  const row = (p: string) => (
+    <button
+      key={p}
+      role="menuitem"
+      className={data.docs[p].project.crossed ? 'crossed' : undefined}
+      onClick={() => {
+        onClose();
+        onPick(p);
+      }}
+    >
+      {data.docs[p].project.title}
+    </button>
+  );
+  return (
+    <Panel onClose={onClose} label="Move to Project">
+      <div className="form">
+        <p className="form-title">Move "{text.split('\n')[0]}" to…</p>
+        <p className="hint">It goes to the end of that Project, with everything under it.</p>
+        {here.length + rest.length === 0 && <p className="hint">There is no other Project yet.</p>}
+        <div className="menu move-list" role="menu">
+          {here.map(row)}
+          {rest.length > 0 && <p className="menu-heading">Other Projects</p>}
+          {rest.map(row)}
+        </div>
+      </div>
+    </Panel>
   );
 }

@@ -13,6 +13,12 @@ type Ui = {
   /** Open Change log: `{ pid }` for a Project's Log, `{ pid: null }` for the global one. */
   log: { pid: string | null } | null;
   setLog: (log: { pid: string | null } | null) => void;
+  /** Current Workspace; null = All Projects. Not remembered: the app always opens on All Projects (ticket 02). */
+  workspace: string | null;
+  setWorkspace: (wid: string | null) => void;
+  /** Item to scroll to and highlight briefly after a search jump. */
+  flash: string | null;
+  setFlash: (id: string | null) => void;
   setOpenProject: (id: string | null) => void;
   startEditing: (key: string | null, fresh?: string) => void;
   stopEditing: (fresh?: string) => void;
@@ -26,6 +32,10 @@ export const useUi = create<Ui>((set) => ({
   lastSubtaskParent: {},
   log: null,
   setLog: (log) => set({ log }),
+  workspace: null,
+  setWorkspace: (workspace) => set({ workspace }),
+  flash: null,
+  setFlash: (flash) => set({ flash }),
   setOpenProject: (openProject) => set({ openProject, editing: null }),
   startEditing: (editing, freshId) =>
     set((s) => ({ editing, fresh: freshId ? new Set([...s.fresh, freshId]) : s.fresh })),

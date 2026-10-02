@@ -42,7 +42,7 @@ type Placed = { id: string; group: number; order: string };
  * New order key for an element dropped at `index` of a displayed list (the list without the element).
  * Only neighbours in the same display group matter: a dated element keeps showing by date anyway.
  */
-function dropKey(list: Placed[], index: number, group: number): string {
+function dropKey(list: Placed[], index: number, group: number, allKeys = list.map((p) => p.order)): string {
   let prev: Placed | null = null;
   for (let i = index - 1; i >= 0; i--) {
     if (list[i].group === group) {
@@ -50,18 +50,23 @@ function dropKey(list: Placed[], index: number, group: number): string {
       break;
     }
   }
-  return keyAfter(prev?.order ?? null, list.map((p) => p.order));
+  return keyAfter(prev?.order ?? null, allKeys);
 }
 
 const itemGroup = (it: Item) => (it.bottomed ? 2 : it.type === 'task' && it.due ? 0 : 1);
 
 // ---- Projects --------------------------------------------------------------
 
-export function addProject(data: AppData, p: { id: string; title: string }, now: Timestamp): AppData {
+/** A new Project goes to the end of the manual order and joins `workspace`, the one selected (ticket 02). */
+export function addProject(data: AppData, p: { id: string; title: string }, now: Timestamp, workspace?: string | null): AppData {
   const order = keyAtEnd(Object.values(data.index.projectOrder).map((o) => o.order));
+  const w = workspace ? data.index.workspaces[workspace] : undefined;
+  const workspaces = w && workspace
+    ? { ...data.index.workspaces, [workspace]: { ...w, projects: [...w.projects, p.id], at: now } }
+    : data.index.workspaces;
   return {
     ...data,
-    index: { ...data.index, projectOrder: { ...data.index.projectOrder, [p.id]: { order, at: now } } },
+    index: { ...data.index, projectOrder: { ...data.index.projectOrder, [p.id]: { order, at: now } }, workspaces },
     docs: {
       ...data.docs,
       [p.id]: {
@@ -84,13 +89,17 @@ export function setProjectFolded(data: AppData, pid: string, folded: boolean, no
   return withDoc(data, pid, (doc) => ({ ...doc, project: { ...doc.project, folded, positionAt: now } }));
 }
 
-/** Drag a Project to `index` of the displayed Project list. */
-export function moveProject(data: AppData, pid: string, index: number, now: Timestamp): AppData {
+/**
+ * Drag a Project to `index` of the displayed Project list: `shown` is that list when a Workspace hides some
+ * Projects. It lands just after its new upper neighbour in the one manual order.
+ */
+export function moveProject(data: AppData, pid: string, index: number, now: Timestamp, shown?: string[]): AppData {
   const group = (id: string) => (data.docs[id].project.bottomed ? 2 : projectSortDate(data.docs[id]) ? 0 : 1);
-  const list = sortedProjectIds(data)
+  const list = (shown ?? sortedProjectIds(data))
     .filter((id) => id !== pid)
     .map((id) => ({ id, group: group(id), order: data.index.projectOrder[id]?.order ?? '' }));
-  const order = dropKey(list, index, group(pid));
+  const allKeys = Object.entries(data.index.projectOrder).filter(([id]) => id !== pid).map(([, o]) => o.order);
+  const order = dropKey(list, index, group(pid), allKeys);
   return {
     ...data,
     index: { ...data.index, projectOrder: { ...data.index.projectOrder, [pid]: { order, at: now } } },
@@ -199,4 +208,54 @@ export function outdent(data: AppData, pid: string, id: string, now: Timestamp):
       .map((i) => i.order);
     return { ...it, parent: oldParent.parent, order: keyAfter(oldParent.order, keys), positionAt: now };
   });
+}
+
+// ---- Moving between Projects, and the search jump ----------------------------
+
+/** Open point 11: only Tasks move (a Note can't be top level). */
+export function canMoveToProject(doc: ProjectDoc, id: string): boolean {
+  return doc.items[id]?.type === 'task';
+}
+
+/** The Task and its branch go to the end of the other Project's top level. Ids stay the same. */
+export function moveToProject(data: AppData, from: string, id: string, to: string, now: Timestamp): AppData {
+  const src = data.docs[from];
+  const dst = data.docs[to];
+  if (!src || !dst || from === to) throw new Error('Pick another Project');
+  if (!canMoveToProject(src, id)) throw new Error('Only Tasks can move to another Project');
+  const branch = new Set<string>([id]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const it of Object.values(src.items)) {
+      if (it.parent && branch.has(it.parent) && !branch.has(it.id)) {
+        branch.add(it.id);
+        grew = true;
+      }
+    }
+  }
+  const order = keyAtEnd(Object.values(dst.items).filter((i) => i.parent === null).map((i) => i.order));
+  const kept: Record<string, Item> = {};
+  const moved: Record<string, Item> = {};
+  for (const it of Object.values(src.items)) {
+    if (!branch.has(it.id)) kept[it.id] = it;
+    else moved[it.id] = it.id === id ? { ...it, parent: null, order, positionAt: now } : { ...it, positionAt: now };
+  }
+  return {
+    ...data,
+    docs: {
+      ...data.docs,
+      [from]: { ...src, items: kept },
+      [to]: { ...dst, items: { ...dst.items, ...moved } },
+    },
+  };
+}
+
+/** Unfold every folded parent so the Item can be seen (search jump). Unchanged data if nothing is folded. */
+export function reveal(data: AppData, pid: string, id: string, now: Timestamp): AppData {
+  const doc = data.docs[pid];
+  let out = data;
+  for (let p = doc?.items[id]?.parent ?? null; p && doc.items[p]; p = doc.items[p].parent) {
+    if (doc.items[p].folded) out = setFolded(out, pid, p, false, now);
+  }
+  return out;
 }

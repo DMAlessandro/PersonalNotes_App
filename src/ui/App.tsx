@@ -11,14 +11,23 @@ import { Resolver } from './Resolver';
 import { useUpdate } from '../store/update';
 import { TopBar, type ViewMode } from './TopBar';
 import { useWide } from './useWide';
+import { Search } from './Search';
+import { Workspaces } from './Workspaces';
+import { reveal } from '../domain/edits';
+import type { SearchResult } from '../domain/search';
+import { shownProjectIds, sortedWorkspaces } from '../domain/workspaces';
 
-type HistoryState = { project?: string; log?: string; settings?: boolean } | null;
+type HistoryState = { project?: string; log?: string; settings?: boolean; search?: boolean; workspaces?: boolean } | null;
 
 export function App() {
   const [view, setView] = useState<ViewMode>('list');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { loaded, load, saveError } = useStore();
-  const { openProject, setOpenProject, log, setLog } = useUi();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [workspacesOpen, setWorkspacesOpen] = useState(false);
+  const { loaded, load, saveError, apply } = useStore();
+  const { openProject, setOpenProject, log, setLog, workspace, setWorkspace, setFlash } = useUi();
+  const index = useStore((s) => s.data.index);
+  const workspaces = useMemo(() => sortedWorkspaces({ index, docs: {}, log: {} }), [index]);
   const exists = useStore((s) => (openProject ? !!s.data.docs[openProject] : false));
   const sync = useSync();
   const configured = useMemo(isConfigured, [sync.configVersion]);
@@ -49,6 +58,8 @@ export function App() {
       const st = e.state as HistoryState;
       setLog(st?.log ? { pid: st.log === '*' ? null : st.log } : null);
       setSettingsOpen(!!st?.settings);
+      setSearchOpen(!!st?.search);
+      setWorkspacesOpen(!!st?.workspaces);
       if (!wide) setOpenProject(st?.project ?? null);
     };
     window.addEventListener('popstate', onPop);
@@ -71,6 +82,47 @@ export function App() {
   };
   const closeSettings = () => (history.state?.settings ? history.back() : setSettingsOpen(false));
 
+  const openSearch = () => {
+    history.pushState({ ...(history.state ?? {}), search: true }, '');
+    setSearchOpen(true);
+  };
+  const closeSearch = () => (history.state?.search ? history.back() : setSearchOpen(false));
+  const openWorkspaces = () => {
+    history.pushState({ ...(history.state ?? {}), workspaces: true }, '');
+    setWorkspacesOpen(true);
+  };
+  const closeWorkspaces = () => (history.state?.workspaces ? history.back() : setWorkspacesOpen(false));
+
+  // A Workspace deleted (here or on the other device) falls back to All Projects.
+  useEffect(() => {
+    if (workspace && !index.workspaces[workspace]) setWorkspace(null);
+  }, [index, workspace, setWorkspace]);
+
+  // Picking a Workspace filters everything (ticket 02): an open Project outside it is closed.
+  const pickWorkspace = (wid: string | null) => {
+    setWorkspace(wid);
+    const cur = useUi.getState().openProject;
+    if (cur && !shownProjectIds(useStore.getState().data, wid).includes(cur)) {
+      if (!wide && history.state?.project) history.back();
+      else setOpenProject(null);
+    }
+  };
+
+  // Search jump (spec §5.4): open the Project, unfold the path, scroll to the Item and highlight it.
+  // A result under Other Projects switches to All Projects so the Project is in the list.
+  const jump = (r: SearchResult) => {
+    const st: Record<string, unknown> = { ...(history.state ?? {}) };
+    delete st.search;
+    if (!wide) st.project = r.pid;
+    if (history.state?.search) history.replaceState(st, '');
+    else if (!wide && !openProject) history.pushState(st, '');
+    setSearchOpen(false);
+    if (workspace && !index.workspaces[workspace]?.projects.includes(r.pid)) setWorkspace(null);
+    apply((d, now) => reveal(d, r.pid, r.item.id, now));
+    setOpenProject(r.pid);
+    setFlash(r.item.id);
+  };
+
   const current = openProject && exists ? openProject : null;
 
   return (
@@ -85,6 +137,11 @@ export function App() {
         onOpenSettings={openSettings}
         onPush={() => void sync.pushNow()}
         onRefresh={() => void sync.pullNow()}
+        workspaces={workspaces}
+        workspace={workspace}
+        onWorkspace={pickWorkspace}
+        onOpenWorkspaces={openWorkspaces}
+        onSearch={openSearch}
       />
       {update.ready && (
         <div className="banner update">
@@ -128,6 +185,8 @@ export function App() {
       )}
       {log && <ChangeLog pid={log.pid} onClose={closeLog} />}
       {settingsOpen && <Settings onClose={closeSettings} />}
+      {workspacesOpen && <Workspaces onClose={closeWorkspaces} />}
+      {searchOpen && <Search onClose={closeSearch} onJump={jump} />}
       <FirstConnectChoice />
       <Resolver />
       <Toast />

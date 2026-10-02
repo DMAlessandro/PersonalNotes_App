@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { addProject, moveProject, renameProject } from '../domain/edits';
 import { newId } from '../domain/ids';
-import { openTaskCount, projectDeadline, sortedProjectIds } from '../domain/ordering';
+import { openTaskCount, projectDeadline } from '../domain/ordering';
+import { shownProjectIds } from '../domain/workspaces';
+import { ProjectWorkspaces } from './Workspaces';
 import { useStore } from '../store/store';
 import { useUi } from '../store/ui';
 import { DueChip } from './format';
@@ -13,20 +15,24 @@ import { Confirm } from './Confirm';
 import { crossProject, deleteProject, sendProjectToBottom, uncrossProject } from '../domain/lifecycle';
 import { deviceName } from '../store/device';
 
-/** Spec §5.1: the Projects in the one manual order, dated ones first. */
+/** Spec §5.1: the current Workspace's Projects in the one manual order, dated ones first. */
 export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
   const data = useStore((s) => s.data);
   const apply = useStore((s) => s.apply);
-  const { openProject, editing, startEditing, stopEditing } = useUi();
+  const { openProject, editing, startEditing, stopEditing, workspace } = useUi();
   const [creating, setCreating] = useState(false);
   const [menu, setMenu] = useState<{ pid: string; at: DOMRect } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [membership, setMembership] = useState<string | null>(null);
   const toggleCross = (pid: string) =>
     apply((d, now) =>
       d.docs[pid].project.crossed ? uncrossProject(d, pid, now) : crossProject(d, pid, now, deviceName()),
     );
-  const drag = useDrag('projects', (id, index) => apply((d, now) => moveProject(d, id, index, now)));
-  const ids = sortedProjectIds(data);
+  const drag = useDrag('projects', (id, index) =>
+    apply((d, now) => moveProject(d, id, index, now, shownProjectIds(d, useUi.getState().workspace))),
+  );
+  const ids = shownProjectIds(data, workspace);
+  const wsName = workspace ? data.index.workspaces[workspace]?.name : undefined;
   const longPress = useLongPress((el) => {
     const pid = el.dataset.dragId;
     if (pid) setMenu({ pid, at: el.getBoundingClientRect() });
@@ -36,8 +42,10 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
     <nav className="project-list" aria-label="Projects">
       {ids.length === 0 && !creating && (
         <div className="empty">
-          <p className="empty-title">No Projects yet</p>
-          <p className="empty-hint">Add one to start.</p>
+          <p className="empty-title">{wsName ? `No Projects in ${wsName}` : 'No Projects yet'}</p>
+          <p className="empty-hint">
+            {wsName ? 'Add one here, or pick Projects with ⋯ → Workspaces… under All Projects.' : 'Add one to start.'}
+          </p>
         </div>
       )}
       <ul>
@@ -106,7 +114,7 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
               setCreating(false);
               if (!t.trim()) return;
               const id = newId('p');
-              apply((d, now) => addProject(d, { id, title: t.trim() }, now));
+              apply((d, now) => addProject(d, { id, title: t.trim() }, now, workspace));
               onOpen(id);
             }}
             onCancel={() => setCreating(false)}
@@ -123,6 +131,7 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
             onClose={() => setMenu(null)}
             entries={[
               { label: 'Rename', onSelect: () => startEditing(`project:${menu.pid}`) },
+              { label: 'Workspaces…', onSelect: () => setMembership(menu.pid) },
               { label: data.docs[menu.pid].project.crossed ? 'Un-cross' : 'Cross out', onSelect: () => toggleCross(menu.pid) },
               data.docs[menu.pid].project.crossed &&
                 !data.docs[menu.pid].project.bottomed && {
@@ -138,6 +147,7 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
           />
         </Panel>
       )}
+      {membership && <ProjectWorkspaces pid={membership} onClose={() => setMembership(null)} />}
       {confirmDelete && data.docs[confirmDelete] && (
         <Confirm
           title={`Delete the Project "${data.docs[confirmDelete].project.title}"?`}
