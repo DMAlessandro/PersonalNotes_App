@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { children, progress, projectDeadline, projectSortDate, sortedProjectIds, openTaskCount } from './ordering';
+import { children, progress, projectDeadline, projectSortDate, sortedProjectIds, openTaskCount, taskOutline } from './ordering';
 import { data, doc, item } from './testkit';
 
 const ids = (xs: { id: string }[]) => xs.map((x) => x.id);
@@ -94,6 +94,21 @@ describe('Project order', () => {
       { manualB: 'b', dated: 'c', manualA: 'a', sent: 'A', soon: 'z' },
     );
     expect(sortedProjectIds(app)).toEqual(['soon', 'dated', 'manualA', 'manualB', 'sent']);
+  });
+});
+
+describe('Task outline for the Subtask picker', () => {
+  it('lists every Task in display order with its depth, skipping Notes', () => {
+    const d = doc('p', [
+      item('b', { order: 'b' }),
+      item('a', { order: 'a', due: '2026-12-01' }),
+      item('a1', { parent: 'a', order: 'a' }),
+      item('an', { parent: 'a', type: 'note', order: 'b' }),
+      item('a1x', { parent: 'a1', order: 'a' }),
+    ]);
+    expect(taskOutline(d).map((t) => [t.item.id, t.depth])).toEqual([
+      ['a', 0], ['a1', 1], ['a1x', 2], ['b', 0],
+    ]);
   });
 });
 

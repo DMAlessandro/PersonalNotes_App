@@ -67,7 +67,7 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 
 ## 5. Exact Next Step
 
-1. Wait for the user's slice-2 checkpoint (spec section 8) on laptop and phone. Fix what they report.
+1. Slice 2 checkpoint: the user liked it and asked for long-press menus on touch and a Subtask shortcut next to + (both done 2026-10-02, recorded in spec 4.4 / 5.2). Wait for them to try these on the phone.
 2. Then build **slice 3 - Cross out, Delete, Change log** (spec section 8), test-first in `src/domain/`: cross/un-cross with `crossSnap`, down-to-bottom, Delete (only when crossed), Change-log entries per ISO week, restore-the-chain. UI: enable the tick box, menu entries, in-app Delete confirmation, per-Project Log and global Change log.
 
 Tooling note: long heredocs in the Bash tool sometimes fail with "unexpected EOF"; use the Write tool for new files.

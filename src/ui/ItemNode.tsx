@@ -12,6 +12,7 @@ import { Menu, Panel } from './Panel';
 import { TextEditor } from './TextEditor';
 import { DueSheet } from './DueSheet';
 import { useDrag } from './useDrag';
+import { useLongPress } from './useLongPress';
 
 export const groupOf = (pid: string, parent: string | null) => `items:${pid}:${parent ?? 'root'}`;
 
@@ -33,6 +34,7 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
   const { editing, fresh, startEditing, stopEditing } = useUi();
   const [menu, setMenu] = useState<DOMRect | null>(null);
   const [dueOpen, setDueOpen] = useState(false);
+  const longPress = useLongPress((el) => setMenu(el.getBoundingClientRect()));
   const kids = children(doc, item.id);
   const prog = progress(doc, item.id);
   const isEditing = editing === `item:${item.id}`;
@@ -84,7 +86,7 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
   ].filter(Boolean);
 
   const row = (
-    <div className="row">
+    <div className="row" {...(isEditing ? {} : longPress)}>
       <button className="handle" aria-label="Drag to reorder" onPointerDown={dragHandle(item.id)}>
         ⠿
       </button>

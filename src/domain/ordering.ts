@@ -21,6 +21,20 @@ export function children(doc: ProjectDoc, parent: string | null): Item[] {
     .sort((a, b) => compare({ ...a, due: ownDue(a) }, { ...b, due: ownDue(b) }));
 }
 
+/** Every Task of the Project in display order, with its depth (0 = top level). Notes are skipped. */
+export function taskOutline(doc: ProjectDoc): { item: Item; depth: number }[] {
+  const out: { item: Item; depth: number }[] = [];
+  const walk = (parent: string | null, depth: number) => {
+    for (const it of children(doc, parent)) {
+      if (it.type !== 'task') continue;
+      out.push({ item: it, depth });
+      walk(it.id, depth + 1);
+    }
+  };
+  walk(null, 0);
+  return out;
+}
+
 export function hasChildren(doc: ProjectDoc, id: string): boolean {
   return Object.values(doc.items).some((i) => i.parent === id);
 }

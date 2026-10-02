@@ -239,12 +239,13 @@ Dragging changes only `order`. A dated Item can be dragged, but it is still show
 | Edit | Where | Rule |
 |---|---|---|
 | Add Task (top level) | + button (List), "+ Task" on Project box (Map) | Goes to the end of the top level. Joins nothing else. |
+| Add Subtask (shortcut) | "Subtask" button next to + (List) | Panel with an "Under" picker of the Project's Tasks (remembers the last one chosen, per Project, until the app closes), text, optional due date. Goes to the end of that Task's children and unfolds it. *(User, 2026-10-02.)* |
 | Add under | ⋯ on a Task | Task or Note, at the end of that Task's children. |
 | Add Project | Project list +, "+ Project" on the Map root | Joins the current Workspace if one is selected. |
 | Edit text | in place on the box/card | Multi-line field; Enter saves, Shift+Enter is a new line, Esc cancels. Empty text on a new Item discards it. |
 | Set / clear due date | ⋯ → Due date | Tasks only; bottom-panel date picker. |
 | Note → Task | ⋯ on a Note | One way only. |
-| Reorder | drag (laptop: handle; phone: long-press-drag in the List view) | Same level only. |
+| Reorder | drag the ⠿ handle (laptop and phone) | Same level only. |
 | Indent / Outdent | ⋯ → Indent / Outdent; Tab / Shift+Tab while editing on laptop | Indent = becomes last child of the Task just above. Not offered when it would break §2.1 (e.g. a Note can't be outdented to top level). **[open]** |
 | Move to Project… | ⋯ | The Item and its branch go to the end of the other Project's top level (a Note can't be top level, so a Note is moved with "Make Task" first, or the option is hidden for Notes). **[open]** |
 | Fold / unfold | arrow on a card/box | Saved per Item, Pushed, not counted as unpushed. |
@@ -275,6 +276,9 @@ One top bar on every screen: **menu** (☰), **Workspace picker** (All Projects 
 - Small grey line per Item: created / edited / crossed-out dates.
 - Laptop: cards in as many columns as fit the window (no maximum). Phone: one column.
 - Round **+** opens a bottom panel to add a top-level Task (text, optional due date). Notes and Subtasks are added from ⋯ → Add under.
+- Next to **+**, a **Subtask** button (shown once the Project has a Task) opens the same panel with an "Under" Task picker (§4.4). *(User, 2026-10-02.)*
+- **Long-press (~0.5 s) on a Task, Note or Project row opens its ⋯ menu** on touch screens, with a short vibration, as in the Map view. A moving finger (scroll) or a short tap does not; the lift after a long-press is not a tap. *(User, 2026-10-02.)*
+- Reordering uses the ⠿ handle on laptop and phone (not long-press-drag), since long-press now opens the menu.
 - Crossed-out Items: struck through, greyed, branch folded, **↓ bottom** button, Delete in ⋯.
 
 ### 5.3 Map view (tickets 06 and 11, `prototypes/map-touch-prototype.html`)

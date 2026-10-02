@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { addItem, moveItem, renameProject } from '../domain/edits';
+import { addItem, moveItem, renameProject, setFolded } from '../domain/edits';
 import { newId } from '../domain/ids';
-import { children, projectDeadline } from '../domain/ordering';
+import { children, projectDeadline, taskOutline } from '../domain/ordering';
 import { useStore } from '../store/store';
 import { useUi } from '../store/ui';
 import { DueChip } from './format';
@@ -15,7 +15,7 @@ export function ProjectView({ pid, onBack }: { pid: string; onBack?: () => void 
   const doc = useStore((s) => s.data.docs[pid]);
   const apply = useStore((s) => s.apply);
   const { editing, startEditing, stopEditing } = useUi();
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<'task' | 'subtask' | null>(null);
   const drag = useDrag(groupOf(pid, null), (id, index) => apply((d, now) => moveItem(d, pid, id, index, now)));
 
   if (!doc) return null;
@@ -65,25 +65,52 @@ export function ProjectView({ pid, onBack }: { pid: string; onBack?: () => void 
         </div>
       )}
 
-      <button className="fab" aria-label="Add Task" onClick={() => setAdding(true)}>
-        +
-      </button>
-      {adding && <AddTaskPanel pid={pid} onClose={() => setAdding(false)} />}
+      <div className="fabs">
+        {top.length > 0 && (
+          <button className="fab-sub" aria-label="Add Subtask" title="Add Subtask" onClick={() => setAdding('subtask')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+              <path d="M6 4v9a3 3 0 0 0 3 3h9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path d="M15 13l3 3-3 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span>Subtask</span>
+          </button>
+        )}
+        <button className="fab" aria-label="Add Task" onClick={() => setAdding('task')}>
+          +
+        </button>
+      </div>
+      {adding === 'task' && <AddTaskPanel pid={pid} onClose={() => setAdding(null)} />}
+      {adding === 'subtask' && <AddTaskPanel pid={pid} subtask onClose={() => setAdding(null)} />}
     </section>
   );
 }
 
-/** + opens a bottom panel: text and an optional due date. Only Tasks at the top level (spec §5.2). */
-function AddTaskPanel({ pid, onClose }: { pid: string; onClose: () => void }) {
+/**
+ * + opens a bottom panel: text and an optional due date, for a top-level Task (spec §5.2).
+ * The Subtask shortcut next to it (user, 2026-10-02) adds the same panel with an "Under" Task picker,
+ * which remembers the last Task chosen in this Project.
+ */
+function AddTaskPanel({ pid, subtask, onClose }: { pid: string; subtask?: boolean; onClose: () => void }) {
   const apply = useStore((s) => s.apply);
+  const doc = useStore((s) => s.data.docs[pid]);
+  const { lastSubtaskParent, rememberSubtaskParent } = useUi();
+  const tasks = taskOutline(doc);
+  const remembered = lastSubtaskParent[pid];
+  const [parent, setParent] = useState(
+    tasks.some((t) => t.item.id === remembered) ? remembered : (tasks[0]?.item.id ?? ''),
+  );
   const [text, setText] = useState('');
   const [due, setDue] = useState('');
 
   const add = () => {
-    if (!text.trim()) return;
-    apply((d, now) => addItem(d, pid, { id: newId('i'), type: 'task', text: text.trim(), parent: null, due: due || null }, now));
-    setText('');
-    setDue('');
+    if (!text.trim() || (subtask && !parent)) return;
+    const under = subtask ? parent : null;
+    apply((d, now) => {
+      // Unfold the chosen Task so the new Subtask is visible.
+      const opened = under && d.docs[pid].items[under]?.folded ? setFolded(d, pid, under, false, now) : d;
+      return addItem(opened, pid, { id: newId('i'), type: 'task', text: text.trim(), parent: under, due: due || null }, now);
+    });
+    if (under) rememberSubtaskParent(pid, under);
   };
 
   return (
@@ -96,13 +123,25 @@ function AddTaskPanel({ pid, onClose }: { pid: string; onClose: () => void }) {
           onClose();
         }}
       >
-        <p className="form-title">New Task</p>
+        <p className="form-title">{subtask ? 'New Subtask' : 'New Task'}</p>
+        {subtask && (
+          <label className="field-row">
+            Under
+            <select className="field" value={parent} onChange={(e) => setParent(e.target.value)}>
+              {tasks.map(({ item, depth }) => (
+                <option key={item.id} value={item.id}>
+                  {'\u00a0\u00a0\u00a0'.repeat(depth) + (depth ? '↳ ' : '') + item.text.split('\n')[0]}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <textarea
           className="field"
           rows={2}
           value={text}
-          placeholder="What needs doing?"
-          autoFocus
+          placeholder={subtask ? 'Subtask' : 'What needs doing?'}
+          autoFocus={!subtask}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {

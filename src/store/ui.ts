@@ -8,15 +8,19 @@ type Ui = {
   editing: string | null;
   /** Items added and not yet given text: discarded if left empty. */
   fresh: Set<string>;
+  /** Per Project: the Task last chosen in the "Add Subtask" panel, offered again next time. */
+  lastSubtaskParent: Record<string, string>;
   setOpenProject: (id: string | null) => void;
   startEditing: (key: string | null, fresh?: string) => void;
   stopEditing: (fresh?: string) => void;
+  rememberSubtaskParent: (pid: string, parent: string) => void;
 };
 
 export const useUi = create<Ui>((set) => ({
   openProject: null,
   editing: null,
   fresh: new Set(),
+  lastSubtaskParent: {},
   setOpenProject: (openProject) => set({ openProject, editing: null }),
   startEditing: (editing, freshId) =>
     set((s) => ({ editing, fresh: freshId ? new Set([...s.fresh, freshId]) : s.fresh })),
@@ -26,4 +30,6 @@ export const useUi = create<Ui>((set) => ({
       if (freshId) fresh.delete(freshId);
       return { editing: null, fresh };
     }),
+  rememberSubtaskParent: (pid, parent) =>
+    set((s) => ({ lastSubtaskParent: { ...s.lastSubtaskParent, [pid]: parent } })),
 }));

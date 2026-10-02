@@ -177,8 +177,16 @@ main.single .project-list { border-right: 0; flex: 1; }
 }
 .title-editor { font-weight: 600; font-size: 16px; }
 
-.fab {
+.fabs {
   position: absolute; right: 18px; bottom: max(18px, env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 12px;
+}
+.fab-sub {
+  display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 16px 0 12px;
+  border-radius: 22px; border: 1px solid var(--line); background: var(--card); color: var(--accent);
+  font-weight: 600; box-shadow: var(--shadow);
+}
+.fab {
   width: 56px; height: 56px; border-radius: 50%; border: 0;
   background: var(--accent); color: var(--accent-text); font-size: 28px; line-height: 1; box-shadow: var(--shadow);
 }
@@ -218,4 +226,6 @@ main.single .project-list { border-right: 0; flex: 1; }
   .fold { width: 28px; height: 36px; }
   .tick { width: 22px; height: 22px; margin-top: 7px; }
   .more { width: 40px; height: 36px; }
+  /* Long-press opens the menu, so it must not start a text selection. */
+  .row, .p-row { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 }

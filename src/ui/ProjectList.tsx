@@ -8,6 +8,7 @@ import { DueChip } from './format';
 import { Menu, Panel } from './Panel';
 import { TextEditor } from './TextEditor';
 import { useDrag } from './useDrag';
+import { useLongPress } from './useLongPress';
 
 /** Spec §5.1: the Projects in the one manual order, dated ones first. */
 export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
@@ -18,6 +19,10 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
   const [menu, setMenu] = useState<{ pid: string; at: DOMRect } | null>(null);
   const drag = useDrag('projects', (id, index) => apply((d, now) => moveProject(d, id, index, now)));
   const ids = sortedProjectIds(data);
+  const longPress = useLongPress((el) => {
+    const pid = el.dataset.dragId;
+    if (pid) setMenu({ pid, at: el.getBoundingClientRect() });
+  });
 
   return (
     <nav className="project-list" aria-label="Projects">
@@ -39,6 +44,7 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
               data-drag-group="projects"
               data-drag-id={pid}
               className={pid === openProject ? 'p-row selected' : 'p-row'}
+              {...(renaming ? {} : longPress)}
             >
               <button className="handle" aria-label="Drag to reorder" onPointerDown={drag(pid)}>
                 ⠿
