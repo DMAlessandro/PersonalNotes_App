@@ -63,7 +63,7 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 - **Spec open points** (spec §11) were accepted wholesale with a short "ok continue". If the user later objects to one, treat it as a change, not a mistake, and update the spec.
 - **Never verified:**
   - ~~Any real GitHub API call.~~ Verified 2026-10-02 (slice 4), with the gh CLI token, not yet with the user's fine-grained token.
-  - That Android Chrome grants persistent storage to the installed PWA.
+  - ~~That Android Chrome grants persistent storage to the installed PWA.~~ Confirmed by the user on the phone, 2026-10-02.
   - Long-press and pinch on a real device. The user tried the touch prototype and said it works well, but nothing was measured.
 
 ## 4. Failed Approaches / Traps to Avoid
@@ -78,8 +78,8 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 
 ## 5. Exact Next Step
 
-1. The build slices are done. The user starts **a week of real use on both devices** (spec slice 9 checkpoint), then gives a list of fixes. Fix those; record each new rule in §3 and in the spec.
-2. Never verified on a real device: Android persistent storage granted to the installed PWA (Settings shows it), and taps right after panning the Map (an emulator-only quirk is suspected).
+1. **The user is using the app for a week (from 2026-10-02) and will come back with a list of fixes.** Work through that list; record each new rule in §3 and in spec §12.
+2. Don't propose out-of-scope features (reminders, deadline overview, map links, sharing, exports); the user declined them for now.
 
 Tooling note: long heredocs in the Bash tool sometimes fail with "unexpected EOF"; use the Write tool for new files.
 
