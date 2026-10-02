@@ -86,9 +86,17 @@ export function TopBar(props: Props) {
       </span>
       <button
         className={busy ? 'push busy' : 'push'}
-        disabled={busy === 'push'}
+        disabled={busy === 'push' || (hasToken && !online)}
         onClick={hasToken ? onPush : onOpenSettings}
-        title={busy === 'pull' ? 'Pulling from GitHub…' : busy === 'push' ? 'Pushing to GitHub…' : undefined}
+        title={
+          hasToken && !online
+            ? 'Offline: Push when the connection is back. Your work is saved on this device.'
+            : busy === 'pull'
+              ? 'Pulling from GitHub…'
+              : busy === 'push'
+                ? 'Pushing to GitHub…'
+                : undefined
+        }
       >
         {hasToken ? (
           busy === 'push' ? 'Pushing…' : 'Push'

@@ -510,3 +510,14 @@ New in this spec:
 17. The app can be used **without a token** (local only) until GitHub is set up.
 18. A rejected Push retries **up to 3 times** before telling the user.
 19. **First connection when both this device and GitHub have Projects**: ask "Keep both" / "Use GitHub's only" (§5.8). *(Added 2026-10-02, after the spec was approved.)*
+
+---
+
+## 12. Decided during the build (all accepted by the user, 2026-10-02)
+
+- **Workspaces** have their own screen (☰ → Workspaces, or the picker's last option "Edit Workspaces…"), not a section in Settings: Settings has a Save button, Workspace edits save at once. Project ⋯ → Workspaces… sets membership from the Project's side.
+- **Search:** a result under "Other Projects" switches the picker to All Projects; an empty query shows nothing, also with "Has due date"; switching Workspace closes an open Project that isn't in it.
+- **Long-press** opens the ⋯ menu in the List view too (user). A **Subtask** button sits next to + (user).
+- **Map:** words are never split, also at hyphens (each run of non-space characters is kept on one line). "+ Project" on the Workspace pill and "Add Task" in a Project's ⋯ make an empty box ready to type into; left empty, it is discarded (not logged). The box being edited is kept in view, also when the phone keyboard opens. A finger that joins a pinch never triggers a long-press.
+- **Messages:** a refused token, missing permission or missing repo offers a **Settings** button; a rate limit says when to try again. An **Offline** label shows in the top bar; Push is disabled offline and automatic Pulls wait for the connection.
+- **App update:** "A new version is ready — Reload" (built in slice 5 after the user saw a stale version).
