@@ -25,7 +25,7 @@ export function useLongPress(onLongPress: (el: HTMLElement) => void) {
       touching.current = e.pointerType === 'touch';
       fired.current = false;
       if (!touching.current) return;
-      if ((e.target as HTMLElement).closest('.handle, textarea, input, a')) return;
+      if ((e.target as HTMLElement).closest('.handle, textarea, input, a, [role=dialog]')) return;
       const el = e.currentTarget;
       start.current = { x: e.clientX, y: e.clientY };
       timer.current = window.setTimeout(() => {

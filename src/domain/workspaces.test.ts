@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { addProject, moveProject } from './edits';
+import { addProject, discardProject, moveProject } from './edits';
 import { emptyData } from './model';
 import { sortedProjectIds } from './ordering';
-import { data, doc } from './testkit';
+import { data, doc, item } from './testkit';
 import {
   addWorkspace, deleteWorkspace, projectWorkspaces, renameWorkspace, setMember, shownProjectIds, sortedWorkspaces,
 } from './workspaces';
@@ -70,5 +70,20 @@ describe('Workspaces', () => {
     expect(sortedProjectIds(d)).toEqual(['a', 'c', 'b']);
     const keys = Object.values(d.index.projectOrder).map((o) => o.order);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('discarding a new, still unnamed Project (Map "+ Project")', () => {
+  it('removes it, its order and its Workspace membership; nothing is logged', () => {
+    const d0 = addWorkspace(emptyData(), { id: 'w', name: 'W' }, NOW);
+    const d1 = addProject(d0, { id: 'n', title: '' }, NOW, 'w');
+    const d2 = discardProject(d1, 'n');
+    expect(d2.docs.n).toBeUndefined();
+    expect(d2.index.projectOrder.n).toBeUndefined();
+    expect(d2.index.workspaces.w.projects).toEqual([]);
+    expect(d2.log).toEqual({});
+  });
+  it('refuses a Project that has Items', () => {
+    expect(() => discardProject(data([doc('p', [item('a')])]), 'p')).toThrow();
   });
 });

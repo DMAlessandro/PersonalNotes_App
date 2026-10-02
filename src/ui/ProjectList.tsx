@@ -1,42 +1,28 @@
-import { useState } from 'react';
-import { addProject, moveProject, renameProject } from '../domain/edits';
+import { useState, type PointerEvent } from 'react';
+import { addProject, moveProject } from '../domain/edits';
 import { newId } from '../domain/ids';
 import { openTaskCount, projectDeadline } from '../domain/ordering';
 import { shownProjectIds } from '../domain/workspaces';
-import { ProjectWorkspaces } from './Workspaces';
+import { sendProjectToBottom } from '../domain/lifecycle';
 import { useStore } from '../store/store';
 import { useUi } from '../store/ui';
 import { DueChip } from './format';
-import { Menu, Panel } from './Panel';
 import { TextEditor } from './TextEditor';
 import { useDrag } from './useDrag';
 import { useLongPress } from './useLongPress';
-import { Confirm } from './Confirm';
-import { crossProject, deleteProject, sendProjectToBottom, uncrossProject } from '../domain/lifecycle';
-import { deviceName } from '../store/device';
+import { useProjectMenu, useProjectRename } from './itemActions';
 
 /** Spec §5.1: the current Workspace's Projects in the one manual order, dated ones first. */
 export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
   const data = useStore((s) => s.data);
   const apply = useStore((s) => s.apply);
-  const { openProject, editing, startEditing, stopEditing, workspace } = useUi();
+  const workspace = useUi((s) => s.workspace);
   const [creating, setCreating] = useState(false);
-  const [menu, setMenu] = useState<{ pid: string; at: DOMRect } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [membership, setMembership] = useState<string | null>(null);
-  const toggleCross = (pid: string) =>
-    apply((d, now) =>
-      d.docs[pid].project.crossed ? uncrossProject(d, pid, now) : crossProject(d, pid, now, deviceName()),
-    );
   const drag = useDrag('projects', (id, index) =>
     apply((d, now) => moveProject(d, id, index, now, shownProjectIds(d, useUi.getState().workspace))),
   );
   const ids = shownProjectIds(data, workspace);
   const wsName = workspace ? data.index.workspaces[workspace]?.name : undefined;
-  const longPress = useLongPress((el) => {
-    const pid = el.dataset.dragId;
-    if (pid) setMenu({ pid, at: el.getBoundingClientRect() });
-  });
 
   return (
     <nav className="project-list" aria-label="Projects">
@@ -49,60 +35,9 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
         </div>
       )}
       <ul>
-        {ids.map((pid) => {
-          const doc = data.docs[pid];
-          const deadline = projectDeadline(doc);
-          const open = openTaskCount(doc);
-          const renaming = editing === `project:${pid}`;
-          return (
-            <li
-              key={pid}
-              data-drag-group="projects"
-              data-drag-id={pid}
-              className={`p-row${pid === openProject ? ' selected' : ''}${doc.project.crossed ? ' crossed' : ''}`}
-              {...(renaming ? {} : longPress)}
-            >
-              <button className="handle" aria-label="Drag to reorder" onPointerDown={drag(pid)}>
-                ⠿
-              </button>
-              {renaming ? (
-                <TextEditor
-                  className="title-editor"
-                  initial={doc.project.title}
-                  onDone={(t) => {
-                    stopEditing();
-                    if (t.trim() && t !== doc.project.title) apply((d, now) => renameProject(d, pid, t.trim(), now));
-                  }}
-                  onCancel={() => stopEditing()}
-                />
-              ) : (
-                <button className="p-open" onClick={() => onOpen(pid)}>
-                  <span className="p-title">{doc.project.title}</span>
-                  <span className="p-meta">
-                    {deadline && <DueChip due={deadline} />}
-                    <span className="count">{open === 1 ? '1 open' : `${open} open`}</span>
-                  </span>
-                </button>
-              )}
-              {doc.project.crossed && !doc.project.bottomed && (
-                <button
-                  className="to-bottom"
-                  title="Move to the bottom of the list"
-                  onClick={() => apply((d, now) => sendProjectToBottom(d, pid, now))}
-                >
-                  ↓ bottom
-                </button>
-              )}
-              <button
-                className="more"
-                aria-label="Project menu"
-                onClick={(e) => setMenu({ pid, at: e.currentTarget.getBoundingClientRect() })}
-              >
-                ⋯
-              </button>
-            </li>
-          );
-        })}
+        {ids.map((pid) => (
+          <ProjectRow key={pid} pid={pid} onOpen={onOpen} dragHandle={drag} />
+        ))}
       </ul>
       {creating ? (
         <div className="p-new">
@@ -125,41 +60,60 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
           + New Project
         </button>
       )}
-      {menu && (
-        <Panel anchor={menu.at} onClose={() => setMenu(null)} label="Project menu">
-          <Menu
-            onClose={() => setMenu(null)}
-            entries={[
-              { label: 'Rename', onSelect: () => startEditing(`project:${menu.pid}`) },
-              { label: 'Workspaces…', onSelect: () => setMembership(menu.pid) },
-              { label: data.docs[menu.pid].project.crossed ? 'Un-cross' : 'Cross out', onSelect: () => toggleCross(menu.pid) },
-              data.docs[menu.pid].project.crossed &&
-                !data.docs[menu.pid].project.bottomed && {
-                  label: '↓ Move to bottom',
-                  onSelect: () => apply((d, now) => sendProjectToBottom(d, menu.pid, now)),
-                },
-              data.docs[menu.pid].project.crossed && {
-                label: 'Delete…',
-                danger: true,
-                onSelect: () => setConfirmDelete(menu.pid),
-              },
-            ]}
-          />
-        </Panel>
-      )}
-      {membership && <ProjectWorkspaces pid={membership} onClose={() => setMembership(null)} />}
-      {confirmDelete && data.docs[confirmDelete] && (
-        <Confirm
-          title={`Delete the Project "${data.docs[confirmDelete].project.title}"?`}
-          body={(() => {
-            const n = Object.keys(data.docs[confirmDelete].items).length;
-            return `${n ? `Its ${n === 1 ? 'Item goes' : `${n} Items go`} with it. ` : ''}You can restore it from the Change log.`;
-          })()}
-          confirmLabel="Delete"
-          onConfirm={() => apply((d, now) => deleteProject(d, confirmDelete, now, deviceName()))}
-          onClose={() => setConfirmDelete(null)}
-        />
-      )}
     </nav>
+  );
+}
+
+type RowProps = {
+  pid: string;
+  onOpen: (pid: string) => void;
+  dragHandle: (id: string) => (e: PointerEvent<HTMLElement>) => void;
+};
+
+function ProjectRow({ pid, onOpen, dragHandle }: RowProps) {
+  const doc = useStore((s) => s.data.docs[pid]);
+  const apply = useStore((s) => s.apply);
+  const selected = useUi((s) => s.openProject === pid);
+  const rename = useProjectRename(pid);
+  const menu = useProjectMenu(pid);
+  const longPress = useLongPress((el) => menu.open(el.getBoundingClientRect()));
+  const deadline = projectDeadline(doc);
+  const open = openTaskCount(doc);
+
+  return (
+    <li
+      data-drag-group="projects"
+      data-drag-id={pid}
+      className={`p-row${selected ? ' selected' : ''}${doc.project.crossed ? ' crossed' : ''}`}
+      {...(rename.isEditing ? {} : longPress)}
+    >
+      <button className="handle" aria-label="Drag to reorder" onPointerDown={dragHandle(pid)}>
+        ⠿
+      </button>
+      {rename.isEditing ? (
+        <TextEditor className="title-editor" initial={doc.project.title} onDone={rename.finishEdit} onCancel={rename.cancelEdit} />
+      ) : (
+        <button className="p-open" onClick={() => onOpen(pid)}>
+          <span className="p-title">{doc.project.title}</span>
+          <span className="p-meta">
+            {deadline && <DueChip due={deadline} />}
+            <span className="count">{open === 1 ? '1 open' : `${open} open`}</span>
+          </span>
+        </button>
+      )}
+      {doc.project.crossed && !doc.project.bottomed && (
+        <button
+          className="to-bottom"
+          title="Move to the bottom of the list"
+          onClick={() => apply((d, now) => sendProjectToBottom(d, pid, now))}
+        >
+          ↓ bottom
+        </button>
+      )}
+      <button className="more" aria-label="Project menu" onClick={(e) => menu.open(e.currentTarget.getBoundingClientRect())}>
+        ⋯
+      </button>
+      {menu.element}
+    </li>
   );
 }

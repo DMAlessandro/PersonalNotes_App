@@ -12,6 +12,7 @@ import { useUpdate } from '../store/update';
 import { TopBar, type ViewMode } from './TopBar';
 import { useWide } from './useWide';
 import { Search } from './Search';
+import { MapView } from './MapView';
 import { Workspaces } from './Workspaces';
 import { reveal } from '../domain/edits';
 import type { SearchResult } from '../domain/search';
@@ -160,13 +161,10 @@ export function App() {
           </button>
         </div>
       )}
-      {view === 'map' ? (
-        <main className="empty">
-          <p className="empty-title">Map view</p>
-          <p className="empty-hint">The Map view arrives in a later build step.</p>
-        </main>
-      ) : !loaded ? (
+      {!loaded ? (
         <main className="empty" />
+      ) : view === 'map' ? (
+        <MapView />
       ) : wide ? (
         <main className="split">
           <ProjectList onOpen={open} />

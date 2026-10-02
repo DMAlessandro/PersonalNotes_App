@@ -81,6 +81,20 @@ export function addProject(data: AppData, p: { id: string; title: string }, now:
   };
 }
 
+/** Drop a just-added Project left without a name (Map "+ Project"). Not a Delete: nothing is logged. */
+export function discardProject(data: AppData, pid: string): AppData {
+  const doc = data.docs[pid];
+  if (!doc) return data;
+  if (Object.keys(doc.items).length) throw new Error('Project has Items');
+  const { [pid]: _doc, ...docs } = data.docs;
+  const { [pid]: _order, ...projectOrder } = data.index.projectOrder;
+  const workspaces = Object.fromEntries(
+    Object.entries(data.index.workspaces).map(([id, w]) =>
+      [id, w.projects.includes(pid) ? { ...w, projects: w.projects.filter((p) => p !== pid) } : w]),
+  );
+  return { ...data, docs, index: { ...data.index, projectOrder, workspaces } };
+}
+
 export function renameProject(data: AppData, pid: string, title: string, now: Timestamp): AppData {
   return withDoc(data, pid, (doc) => ({ ...doc, project: { ...doc.project, title, ...content(now) } }));
 }
