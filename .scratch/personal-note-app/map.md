@@ -31,6 +31,7 @@ A buildable spec at `.scratch/personal-note-app/spec.md`: every design decision 
 - [Tech stack & hosting confirmation](issues/08-tech-stack-hosting.md): public `PersonalNotes_App` on GitHub Pages (Actions deploy), private `PersonalNotes` for data; fine-grained token stored per device; React/TS/Vite PWA, IndexedDB, Zustand, plain fetch, hand-drawn map, Vitest.
 - [Change log screen](issues/09-change-log-screen.md): per-Project Log + global Change log; grouped by week, newest first; restoring a Delete brings back missing parents/Projects too; entries are permanent.
 - [Search across Projects](issues/10-search.md): all Projects (current Workspace first); Item text, crossed-out matches shown dimmed; one "Has due date" filter; a result jumps to the Item in the List view.
+- [Map view touch interactions on a phone](issues/11-map-touch-interactions.md): edit text directly on the box (multi-line, Enter saves); one-finger pan, pinch-zoom, long-press for the menu; boxes shrink-wrap their full text up to ~210px and never split a word.
 
 ## Not yet specified
 
