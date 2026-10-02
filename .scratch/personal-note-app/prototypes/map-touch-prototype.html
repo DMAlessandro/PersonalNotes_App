@@ -22,13 +22,14 @@ select,.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);
 .btn.tiny{font-size:11px;padding:1px 6px}
 #vp{position:relative;flex:1;overflow:hidden;background:var(--soft);touch-action:none;cursor:grab;min-height:300px;-webkit-user-select:none;user-select:none}
 #world{position:absolute;left:0;top:0;transform-origin:0 0}
+#measure{position:absolute;left:-9999px;top:0;visibility:hidden}
 #edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
 #edges path{fill:none;stroke:var(--line);stroke-width:1.6}
 .zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px;z-index:3}
-.node{position:absolute;display:flex;align-items:center;gap:4px;padding:4px 6px;border:1px solid var(--line);border-radius:9px;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.06);transition:box-shadow .15s}
+.node{position:absolute;display:flex;align-items:flex-start;gap:4px;padding:4px 6px;border:1px solid var(--line);border-radius:9px;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.06);transition:box-shadow .15s}
 .node.pressing{box-shadow:0 0 0 4px rgba(47,111,222,.35)}
-.node .txt{flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-.node .inl{flex:1;min-width:0;font:inherit;border:1px solid var(--accent);border-radius:6px;padding:2px 4px;background:var(--card);color:var(--fg);-webkit-user-select:text;user-select:text}
+.node .txt{flex:1;min-width:0;white-space:normal;word-break:normal;overflow-wrap:break-word;hyphens:manual} /* full text, wrapped between whole words; only a single over-long word (e.g. a URL) may break */
+.node .inl{flex:1;min-width:0;font:inherit;resize:none;overflow-wrap:break-word;border:1px solid var(--accent);border-radius:6px;padding:2px 4px;background:var(--card);color:var(--fg);-webkit-user-select:text;user-select:text}
 .node.t-project{background:var(--proj);border-color:var(--accent);font-weight:600}
 .node.t-ws{background:var(--accent);color:#fff;border-color:var(--accent);border-radius:20px;font-weight:700;justify-content:center}
 .node.t-ws .btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
@@ -37,7 +38,7 @@ select,.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);
 .node.sel{outline:2px solid var(--accent);outline-offset:2px}
 .fold{border:0;background:none;color:var(--muted);cursor:pointer;padding:0;width:14px;font-size:11px}
 .hidden-count{font-size:10px;background:var(--line);border-radius:8px;padding:0 5px}
-input[type=checkbox]{margin:0;width:15px;height:15px;cursor:pointer;flex:none}
+input[type=checkbox]{margin:1px 0 0;width:15px;height:15px;cursor:pointer;flex:none}
 .due{font-size:10px;border:1px solid var(--line);border-radius:6px;padding:0 4px;color:var(--muted);white-space:nowrap;font-weight:400;font-style:normal}
 .due.late{color:var(--danger);border-color:var(--danger)}
 .prog{font-size:10px;color:var(--muted);font-weight:400}
@@ -62,7 +63,7 @@ input[type=checkbox]{margin:0;width:15px;height:15px;cursor:pointer;flex:none}
 <div class="stage"><div id="frame" class="frame">
   <div id="hdr"></div>
   <div id="vp"><div class="zoom"><button class="btn" data-a="zin">+</button><button class="btn" data-a="zout">−</button><button class="btn" data-a="fit">⤢</button></div>
-    <div id="world"></div><div id="log"></div><div id="sheet"></div></div>
+    <div id="world"></div><div id="measure" aria-hidden="true"></div><div id="log"></div><div id="sheet"></div></div>
 </div></div>
 <div class="switcher">
   <button data-a="prev" aria-label="Previous variant">‹</button><span id="vlabel"></span><button data-a="next" aria-label="Next variant">›</button>
@@ -79,9 +80,9 @@ const P = (text, children) => ({ id: 'p' + uid++, type: 'project', text, crossed
 const grant = P('Grant proposal', [
   T('Draft introduction', { due: '2026-10-10', children: [
     T('Collect key references', { crossed: true }),
-    T('Outline the three paragraphs', { due: '2026-10-05', children: [N('Check the reviewer comments from last round')] }),
+    T('Outline the three paragraphs', { due: '2026-10-05', children: [N('Check the reviewer comments from last round, especially points 3 and 7 about the sample size calculation')] }),
     T('Write the discussion', { children: [N('Compare against the 2019 cohort first')] }) ] }),
-  T('Send figures to co-authors', { due: '2026-09-29', children: [T('Figure 1 – fix axis labels', { crossed: true }), T('Figure 2', { children: [T('Re-run stats'), T('Export at 600 dpi', { due: '2026-10-02' })] })] }),
+  T('Send figures to co-authors', { due: '2026-09-29', children: [T('Figure 1 – fix axis labels and increase the font size of the legend', { crossed: true }), T('Figure 2', { children: [T('Re-run stats'), T('Export at 600 dpi', { due: '2026-10-02' })] })] }),
   T('Plan the next study'),
 ]);
 const teaching = P('Teaching', [T('Prepare lecture 5', { due: '2026-10-06', children: [T('Slides'), T('Quiz', { children: [N("Reuse last year's question 3")] })] }), T('Grade essays', { due: '2026-10-15' })]);
@@ -176,11 +177,39 @@ function cycle(d) {
 const hOf = n => n.type === 'note' ? NH : n.type === 'ws' ? 42 : H;
 function build(n, depth) { const kids = (n.type === 'ws' || !n.collapsed) ? ordered(n.children).map(c => build(c, depth + 1)) : []; return { n, depth, kids, h: hOf(n) }; }
 function layout(root) {
-  let leaf = 0; const out = [];
-  (function rec(t, parent) { out.push(t); t.parent = parent; t.kids.forEach(k => rec(k, t)); t.leaf = t.kids.length ? (t.kids[0].leaf + t.kids[t.kids.length - 1].leaf) / 2 : leaf++; })(build(root, 0), null);
-  if (state.layout === 'A') out.forEach(t => { t.x = t.depth * (W + 70); t.y = t.leaf * (H + 14); });
-  else out.forEach(t => { t.x = t.leaf * (W + 18); t.y = t.depth * (H + 70); });
+  const out = [];
+  (function rec(t, parent) { out.push(t); t.parent = parent; t.kids.forEach(k => rec(k, t)); })(build(root, 0), null);
+  measure(out);
+  const GAP = 12;
+  if (state.layout === 'A') {
+    // Columns by depth; each subtree gets a vertical band tall enough for its tallest box.
+    let cursor = 0;
+    const shift = (t, d) => { t.y += d; t.kids.forEach(k => shift(k, d)); };
+    (function place(t) {
+      t.x = t.depth * (W + 70);
+      const bandTop = cursor;
+      if (!t.kids.length) { t.y = cursor + t.h / 2; cursor += t.h + GAP; return; }
+      t.kids.forEach(place);
+      t.y = (t.kids[0].y + t.kids[t.kids.length - 1].y) / 2;
+      if (t.y - t.h / 2 < bandTop) { const d = bandTop - (t.y - t.h / 2); shift(t, d); cursor += d; }
+      cursor = Math.max(cursor, t.y + t.h / 2 + GAP);
+    })(out[0]);
+  } else {
+    // Rows by depth; each row as tall as its tallest box; leaves spread evenly across.
+    let leaf = 0; const rowH = [];
+    out.forEach(t => { rowH[t.depth] = Math.max(rowH[t.depth] || 0, t.h); });
+    const rowTop = rowH.map((_, d) => rowH.slice(0, d).reduce((a, h) => a + h + 70, 0));
+    (function lv(t) { t.kids.forEach(lv); t.leaf = t.kids.length ? (t.kids[0].leaf + t.kids[t.kids.length - 1].leaf) / 2 : leaf++; })(out[0]);
+    out.forEach(t => { t.x = t.leaf * (W + 18); t.y = rowTop[t.depth] + t.h / 2; });
+  }
   return out;
+}
+// Measure each box's real height at width W so no text is ever cut off.
+function measure(list) {
+  const m = document.getElementById('measure');
+  m.innerHTML = list.map(t => nodeHtml({ ...t, x: W / 2, y: 0, h: 0, measuring: true })).join('');
+  [...m.children].forEach((el, i) => { list[i].h = Math.max(hOf(list[i].n), Math.ceil(el.offsetHeight || 0)); });
+  m.innerHTML = '';
 }
 function edge(p, c) {
   if (state.layout === 'A') { const x1 = p.x + W / 2, x2 = c.x - W / 2; return `M${x1},${p.y} C${x1 + 35},${p.y} ${x2 - 35},${c.y} ${x2},${c.y}`; }
@@ -193,13 +222,13 @@ const fmt = d => new Date(d + 'T12:00').toLocaleDateString('en-GB', { day: 'nume
 const chip = n => { const d = dueOf(n); return d ? `<span class="due ${!n.crossed && d < TODAY ? 'late' : ''}">${fmt(d)}</span>` : ''; };
 function prog(n) { const ds = desc(n).filter(d => d.type !== 'note'); return ds.length ? `<span class="prog">${ds.filter(d => d.crossed).length}/${ds.length}</span>` : ''; }
 function nodeHtml(t) {
-  const n = t.n, pos = `left:${t.x - W / 2}px;top:${t.y - t.h / 2}px;width:${W}px;height:${t.h}px`;
+  const n = t.n, pos = t.measuring ? `left:0;top:0;width:${W}px` : `left:${t.x - W / 2}px;top:${t.y - t.h / 2}px;width:${W}px;min-height:${t.h}px`;
   if (n.type === 'ws') return `<div class="node t-ws" style="${pos}"><span>${esc(n.text)}</span><button class="btn tiny" data-a="addProject">+ Project</button></div>`;
   const editing = state.editing && state.editing.id === n.id;
   const fold = n.children.length ? `<button class="fold" data-a="fold" data-id="${n.id}">${n.collapsed ? '▸' : '▾'}</button>` : '';
   const hidden = n.collapsed && n.children.length ? `<span class="hidden-count">+${desc(n).length}</span>` : '';
   const mark = n.type === 'task' ? `<input type="checkbox" data-a="cross" data-id="${n.id}" ${n.crossed ? 'checked' : ''}>` : '';
-  const text = editing ? `<input class="inl" id="inl" value="${esc(n.text)}" placeholder="${n.type === 'note' ? 'Note…' : n.type === 'project' ? 'Project name…' : 'Task…'}" enterkeyhint="done">`
+  const text = editing && !t.measuring ? `<textarea class="inl" id="inl" rows="${Math.max(1, Math.ceil(n.text.length / 20))}" placeholder="${n.type === 'note' ? 'Note…' : n.type === 'project' ? 'Project name…' : 'Task…'}" enterkeyhint="done">${esc(n.text)}</textarea>`
     : `<span class="txt" data-edit="${n.id}">${esc(n.text)}</span>`;
   return `<div class="node t-${n.type} ${n.crossed ? 'crossed' : ''} ${state.menu === n.id ? 'sel' : ''}" data-node="${n.id}" style="${pos}">
     ${fold}${mark}${text}${editing ? '' : hidden + (n.type !== 'note' ? prog(n) : '') + chip(n)}
@@ -326,7 +355,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('dblclick', e => { const t = e.target.closest('[data-edit]'); if (t) { startEdit(t.dataset.edit); render(); } });
 document.addEventListener('keydown', e => {
-  if (e.target.id === 'inl') { if (e.key === 'Enter') { commitInline(e.target.value); render(); } if (e.key === 'Escape') { state.editing.isNew ? commitInline('') : (state.editing = null); render(); } return; }
+  if (e.target.id === 'inl') { if (e.key === 'Enter') { e.preventDefault(); commitInline(e.target.value); render(); } if (e.key === 'Escape') { state.editing.isNew ? commitInline('') : (state.editing = null); render(); } return; }
   if (e.target.matches('input,textarea,select')) return;
   if (e.key === 'ArrowLeft') { cycle(-1); render(true); } if (e.key === 'ArrowRight') { cycle(1); render(true); }
 });
