@@ -33,6 +33,7 @@ A personal notes/tasks PWA for one user (a researcher) on a Windows laptop and a
 - **Slice 2 extras (user, 2026-10-02):** long-press opens the menu on touch (`src/ui/useLongPress.ts`); a Subtask button next to + with an "Under" picker.
 - **Slice 3 (Cross out, Delete, Change log) built 2026-10-02:** `src/domain/lifecycle.ts` (cross/un-cross with `crossSnap`, down-to-bottom, Delete only when crossed, restore-the-chain, Un-cross from log; Items and Projects), `src/domain/changelog.ts` (ISO weeks, labels, grouping); `AppData.log` holds entries by id, IndexedDB v2 adds a `log` store. UI: tick box, menus, in-app `Confirm`, `ChangeLog` panel (per-Project Log button, global in the ☰ menu), back gesture closes it. Timestamps now carry milliseconds. 73 tests; Playwright run on laptop and 412px.
 - **Slice 4 (GitHub: set-up, Pull, Push) built 2026-10-02:** `src/sync/` (files.ts repo layout + deterministic JSON, readable.ts, changes.ts unpushed count + commit message, engine.ts pull/push with first-connection and `blocked`), `src/github/client.ts` (fetch client, ETag kept with the head it describes, `gitBlobSha`), `src/store/sync.ts`, `settings.ts`, `src/ui/Settings.tsx`, `SyncUi.tsx`. IndexedDB v3 stores the base. **Verified against real GitHub**: `src/github/live.test.ts` (run with LIVE_REPO/LIVE_BRANCH/LIVE_TOKEN on a throwaway branch) and a two-browser Playwright run with CSP on; this found and fixed an ETag bug. `PersonalNotes` main holds one commit (`Laptop: set up PersonalNote`, empty index); test branches were deleted. The user has made their token.
+- **Slice 5 (merge + resolver) built 2026-10-02:** `src/domain/merge.ts` (three-way, per record across all Projects, edit beats Delete, later position wins, structure repair, `resolveClash`), engine returns `merged`/`clashes`, `src/store/sync.ts` keeps pending Clashes in IndexedDB and lands remote data under edits made during the network call, `src/ui/Resolver.tsx`. Found by tests: comparisons were sensitive to JSON key order (repo files have sorted keys) - always compare with `src/domain/canonical.ts`. Push now waits for a running Pull. App update bar (`src/store/update.ts`, `registerType: 'prompt'`) replaced silent auto-update after the user saw a stale version on refresh. 134 tests; two-browser run against real GitHub on a throwaway branch (deleted).
 - The user did the slice-1 phone checkpoint: installed and offline both work.
 
 ## 3. Active Decisions & Constraints
@@ -70,8 +71,8 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 
 ## 5. Exact Next Step
 
-1. Wait for the user's slice-4 checkpoint: set up GitHub on the laptop (owner `DMAlessandro`, repo `PersonalNotes`, branch `main`, their token), Push, then the phone (Keep both / Use GitHub's), Push. Fix what they report.
-2. Then build **slice 5 - Merge and resolver** (spec 6.2, 5.6): replace the `blocked` outcome in `src/sync/engine.ts` `pull()` with the three-way merge, test-first, using `FakeGit` (`src/github/fakeGit.ts`) for engine tests. Confirm open point 19 with the user.
+1. Wait for the user's slice-5 checkpoint: set up both devices (they have the token), edit different Items on both and Push both; edit the same Item on both to see the resolver. Fix what they report. Confirm open point 19 (first-connection choice).
+2. Then build **slice 6 - Workspaces, Move, Search** (spec 8, 5.4, 4.4; ticket 02 and 10).
 
 Tooling note: long heredocs in the Bash tool sometimes fail with "unexpected EOF"; use the Write tool for new files.
 

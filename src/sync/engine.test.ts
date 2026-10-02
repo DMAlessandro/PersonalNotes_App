@@ -131,13 +131,44 @@ describe('Pull (spec §6.1, one device in slice 4)', () => {
     expect(git.calls.filter((c) => c === 'getBlob')).toHaveLength(1);
   });
 
-  it('stops without touching anything when both devices changed things (merging is slice 5)', async () => {
+  it('merges when both devices changed different things, and pushes the result', async () => {
+    const local = withProject('Grant');
+    const { git, base } = await pushed(local);
+    const phone = addItem(local, 'p_Grant', { id: 'i_phone', type: 'task', text: 'from phone', parent: null }, NOW);
+    await git.commitFiles({ 'data/projects/p_Grant.json': toFiles(phone)['data/projects/p_Grant.json'] });
+    const laptop = editText(local, 'p_Grant', 'i_Grant', 'laptop edit', NOW);
+    const r = await pull(git, base, laptop);
+    expect(r.kind === 'merged' && r.clashes).toEqual([]);
+    const p = await push(git, base, laptop, 'Laptop');
+    expect(p.kind).toBe('pushed');
+    const items = fromFiles(git.files()).docs.p_Grant.items;
+    expect(items.i_Grant.text).toBe('laptop edit');
+    expect(items.i_phone.text).toBe('from phone');
+  });
+
+  it('stops before pushing when the same Item clashes, handing the Clash to the resolver', async () => {
     const local = withProject('Grant');
     const { git, base } = await pushed(local);
     await git.commitFiles({ 'data/projects/p_Grant.json': toFiles(editText(local, 'p_Grant', 'i_Grant', 'phone', NOW))['data/projects/p_Grant.json'] });
-    const r = await pull(git, base, editText(local, 'p_Grant', 'i_Grant', 'laptop', NOW));
-    expect(r.kind).toBe('blocked');
-    expect((await push(git, base, editText(local, 'p_Grant', 'i_Grant', 'laptop', NOW), 'Laptop')).kind).toBe('blocked');
+    const head = git.head;
+    const r = await push(git, base, editText(local, 'p_Grant', 'i_Grant', 'laptop', NOW), 'Laptop');
+    expect(r.kind).toBe('clashes');
+    if (r.kind === 'clashes') expect(r.clashes[0]).toMatchObject({ id: 'i_Grant', fields: ['text'] });
+    expect(git.head).toBe(head); // nothing pushed
+  });
+
+  it('when the other device pushes during this Push, pulls, merges and retries by itself', async () => {
+    const local = withProject('Grant');
+    const { git, base } = await pushed(local);
+    git.beforeUpdateRef = async () => {
+      const phone = addItem(local, 'p_Grant', { id: 'i_late', type: 'task', text: 'late phone', parent: null }, NOW);
+      await git.commitFiles({ 'data/projects/p_Grant.json': toFiles(phone)['data/projects/p_Grant.json'] });
+    };
+    const r = await push(git, base, editText(local, 'p_Grant', 'i_Grant', 'laptop', NOW), 'Laptop');
+    expect(r.kind).toBe('pushed');
+    const items = fromFiles(git.files()).docs.p_Grant.items;
+    expect(items.i_Grant.text).toBe('laptop');
+    expect(items.i_late.text).toBe('late phone');
   });
 
   it('ignores a remote change that only touched readable/ copies', async () => {

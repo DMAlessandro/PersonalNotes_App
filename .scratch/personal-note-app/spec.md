@@ -403,7 +403,7 @@ Disabled while offline, while Clashes are pending, or with no token.
 5. `PATCH /git/refs/heads/{branch}` with `force: false`.
 6. Success → new commit becomes `base`, badge goes to 0. **Rejected (409/422, the other device pushed in between)** → back to step 1, up to 3 tries, then a message "Couldn't Push, try again".
 
-Writes are made one after another (never in parallel). On 403/429 the app waits for `retry-after` and tells the user. On 401 it shows "Token expired or revoked — paste a new one in Settings"; local work is untouched.
+Pressing Push while a Pull is running (e.g. the automatic one on returning to the app) waits for it, then pushes. If the user edits while a Pull or Push is on the network, the incoming data is merged under their new edits (three-way, against the snapshot the call started from), so nothing typed meanwhile is lost. Writes are made one after another (never in parallel). On 403/429 the app waits for `retry-after` and tells the user. On 401 it shows "Token expired or revoked — paste a new one in Settings"; local work is untouched.
 
 ### 6.4 Edge cases (from ticket 05) and what happens
 
@@ -462,7 +462,7 @@ Each slice is thin and end-to-end, ends with a deployed build, and has a **check
 | 6 | **Workspaces, Move, Search** | Workspace picker and settings, membership from both sides, new Project joins current Workspace, Move to Project…, Search with filter and jump. | Make a "Research" Workspace and switch; search a word, tap a result inside a folded branch and land on it. |
 | 7 | **Map view (laptop)** | Layout (text measuring, shrink-wrap ≤210px, whole-word wrap, column widths), Workspace/Project/Task/Note boxes, folds, ⋯ menu, edit on the box, zoom/pan/fit, opening zoom rule, top-down switch. | Compare with `map-touch-prototype.html`: same layout, no split words; an edit on the map shows in the List view. |
 | 8 | **Map view (phone)** | Pan, pinch, long-press menu + vibration, bigger touch targets, bottom-panel menus, edit on the box with the phone keyboard. | Use the Map on the phone for a real Project: pan, pinch, long-press, edit, tick. |
-| 9 | **Polish** | Empty states, offline messages, 401/429 handling, app update prompt, accessibility pass, dark mode if wanted. | A week of real use on both devices, then a list of fixes. |
+| 9 | **Polish** | Empty states, offline messages, 401/429 handling, app update prompt (built early, in slice 5: "A new version is ready — Reload", checked on opening and on returning to the app), accessibility pass, dark mode if wanted. | A week of real use on both devices, then a list of fixes. |
 
 ---
 

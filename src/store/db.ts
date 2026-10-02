@@ -3,13 +3,14 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { emptyIndex, type AppData, type IndexDoc, type LogEntry, type ProjectDoc } from '../domain/model';
 import type { Base } from '../sync/engine';
+import type { Clash } from '../domain/merge';
 
 interface Schema extends DBSchema {
   docs: { key: string; value: ProjectDoc };
   meta: { key: string; value: IndexDoc };
   log: { key: string; value: LogEntry };
-  /** The last pulled/pushed commit (spec §3.5 `base`). */
-  sync: { key: string; value: Base };
+  /** 'base': the last pulled/pushed commit (spec §3.5); 'clashes': Clashes not yet settled. */
+  sync: { key: string; value: Base | Clash[] };
 }
 
 const NAME = 'personalnote';
@@ -63,7 +64,15 @@ export async function saveChanges(prev: AppData, next: AppData): Promise<void> {
 }
 
 export async function loadBase(): Promise<Base | null> {
-  return (await (await db()).get('sync', 'base')) ?? null;
+  return ((await (await db()).get('sync', 'base')) as Base | undefined) ?? null;
+}
+
+export async function loadClashes(): Promise<Clash[]> {
+  return ((await (await db()).get('sync', 'clashes')) as Clash[] | undefined) ?? [];
+}
+
+export async function saveClashes(clashes: Clash[]): Promise<void> {
+  await (await db()).put('sync', clashes, 'clashes');
 }
 
 export async function saveBase(base: Base | null): Promise<void> {

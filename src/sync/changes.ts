@@ -1,11 +1,12 @@
 // Spec §2.2 "Unpushed count" and §6.3 commit message.
 import type { AppData } from '../domain/model';
+import { canonical } from '../domain/canonical';
 
 /** A record as compared for the unpushed count: folding (and the position stamp it moves) don't count. */
 function strip<T extends { folded?: boolean; positionAt?: string }>(r: T | undefined): string | undefined {
   if (!r) return undefined;
   const { folded: _f, positionAt: _p, ...rest } = r;
-  return JSON.stringify(rest);
+  return canonical(rest);
 }
 
 type Change = { projectTitle: string | null };
@@ -22,7 +23,7 @@ function changes(base: AppData, cur: AppData): Change[] {
     const ids = new Set([...Object.keys(b?.items ?? {}), ...Object.keys(c?.items ?? {})]);
     for (const id of ids) if (strip(b?.items[id]) !== strip(c?.items[id])) out.push({ projectTitle: title });
     // The order entry of a Project that came or went is part of that change, not another one.
-    if (b && c && JSON.stringify(base.index.projectOrder[pid]?.order) !== JSON.stringify(cur.index.projectOrder[pid]?.order)) {
+    if (b && c && base.index.projectOrder[pid]?.order !== cur.index.projectOrder[pid]?.order) {
       out.push({ projectTitle: null });
     }
   }
@@ -30,7 +31,7 @@ function changes(base: AppData, cur: AppData): Change[] {
   for (const w of wids) {
     const bw = base.index.workspaces[w];
     const cw = cur.index.workspaces[w];
-    if (JSON.stringify(bw && { ...bw, at: 0 }) !== JSON.stringify(cw && { ...cw, at: 0 })) out.push({ projectTitle: null });
+    if (canonical(bw && { ...bw, at: 0 }) !== canonical(cw && { ...cw, at: 0 })) out.push({ projectTitle: null });
   }
   return out;
 }

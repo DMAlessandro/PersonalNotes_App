@@ -2,7 +2,7 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
-import pkg from './package.json';
+import pkg from './package.json' with { type: 'json' };
 
 // Spec §7: the token lives on this origin, so the built app only talks to itself and api.github.com.
 // Production only: the dev server injects inline scripts that this policy would block.
@@ -31,8 +31,9 @@ export default defineConfig({
     react(),
     csp,
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'script',
+      // 'prompt': a new version waits for the user's "Reload" (src/store/update.ts); main.tsx registers it.
+      registerType: 'prompt',
+      injectRegister: false,
       includeAssets: ['icon.svg'],
       manifest: {
         name: 'PersonalNote',

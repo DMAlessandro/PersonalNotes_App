@@ -51,9 +51,9 @@ describe.skipIf(!repo || !branch || !token)('live GitHub', () => {
     const lp = await pull(laptop, first.base, first.data);
     expect(lp.kind === 'adopt' && lp.data.docs.p_live.items.i_1.text).toBe('First (phone)');
 
-    // A stale push is rejected by GitHub (fast-forward only) and the engine reports the clash instead of forcing.
+    // A stale push never forces: the engine pulls, merges, and stops at the Clash (same Item's text on both).
     const stale = await push(laptop, first.base, editText(first.data, 'p_live', 'i_1', 'laptop edit', NOW), 'Laptop');
-    expect(stale.kind).toBe('blocked');
+    expect(stale.kind).toBe('clashes');
 
     // What is on the branch reads back exactly.
     if (pp.kind === 'pushed') {

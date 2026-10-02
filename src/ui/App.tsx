@@ -7,6 +7,8 @@ import { ProjectList } from './ProjectList';
 import { ProjectView } from './ProjectView';
 import { Settings } from './Settings';
 import { FirstConnectChoice, Toast, useUnpushed } from './SyncUi';
+import { Resolver } from './Resolver';
+import { useUpdate } from '../store/update';
 import { TopBar, type ViewMode } from './TopBar';
 import { useWide } from './useWide';
 
@@ -22,6 +24,7 @@ export function App() {
   const configured = useMemo(isConfigured, [sync.configVersion]);
   const unpushed = useUnpushed();
   const wide = useWide();
+  const update = useUpdate();
 
   useEffect(() => {
     void load();
@@ -83,11 +86,21 @@ export function App() {
         onPush={() => void sync.pushNow()}
         onRefresh={() => void sync.pullNow()}
       />
+      {update.ready && (
+        <div className="banner update">
+          A new version of the app is ready.
+          <button className="secondary small" onClick={update.apply}>
+            Reload
+          </button>
+        </div>
+      )}
       {saveError && <div className="banner error">{saveError}</div>}
-      {sync.blocked && (
+      {sync.clashes.length > 0 && !sync.resolverOpen && (
         <div className="banner warn">
-          The other device pushed changes while this one has unpushed edits. Merging arrives in the next build step; your edits
-          here are safe.
+          {sync.clashes.length === 1 ? '1 clash' : `${sync.clashes.length} clashes`} to settle before the next Push.
+          <button className="secondary small" onClick={() => sync.setResolverOpen(true)}>
+            Settle
+          </button>
         </div>
       )}
       {view === 'map' ? (
@@ -116,6 +129,7 @@ export function App() {
       {log && <ChangeLog pid={log.pid} onClose={closeLog} />}
       {settingsOpen && <Settings onClose={closeSettings} />}
       <FirstConnectChoice />
+      <Resolver />
       <Toast />
     </div>
   );

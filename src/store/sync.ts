@@ -1,11 +1,12 @@
 // Pull and Push as the user sees them (spec §6): when they run, what the user is told, and where the
-// result goes. The decisions themselves are in src/sync/engine.ts.
+// result goes. The decisions themselves are in src/sync/engine.ts and src/domain/merge.ts.
 import { create } from 'zustand';
 import { GitHubClient, GitHubError } from '../github/client';
 import { combine, pull, push, type Base } from '../sync/engine';
+import { merge, resolveClash, type Clash } from '../domain/merge';
 import type { AppData } from '../domain/model';
 import { nowIso } from '../domain/time';
-import { loadBase, saveBase } from './db';
+import { loadBase, loadClashes, saveBase, saveClashes } from './db';
 import { deviceName } from './device';
 import { loadSettings, loadToken } from './settings';
 import { useStore } from './store';
@@ -19,8 +20,9 @@ type Sync = {
   notice: Notice | null;
   /** First connection, both sides have data: the user chooses (Keep both / Use GitHub's). */
   choice: { remote: AppData; base: Base } | null;
-  /** The other device pushed while this one has unpushed edits: merging comes in slice 5. */
-  blocked: boolean;
+  /** Clashes waiting for the resolver (spec §5.6). Push waits until they are settled. */
+  clashes: Clash[];
+  resolverOpen: boolean;
   lastPulled: string | null;
   /** Bumped when settings change so the client is rebuilt. */
   configVersion: number;
@@ -28,6 +30,8 @@ type Sync = {
   pullNow: (quiet?: boolean) => Promise<void>;
   pushNow: () => Promise<void>;
   resolveChoice: (keep: 'both' | 'github' | null) => Promise<void>;
+  settle: (choice: 'this' | 'other' | 'both') => Promise<void>;
+  setResolverOpen: (open: boolean) => void;
   /** `repoChanged`: owner/repo/branch changed, so the remembered base belongs to another repo. */
   settingsChanged: (repoChanged: boolean) => Promise<void>;
   dismiss: () => void;
@@ -39,6 +43,8 @@ export function isConfigured(): boolean {
 }
 
 let client: { key: string; c: GitHubClient } | null = null;
+/** The Pull or Push in progress: a Push pressed meanwhile waits for it instead of being dropped. */
+let running: Promise<void> = Promise.resolve();
 function gitClient(): GitHubClient {
   const s = loadSettings();
   const token = loadToken() ?? '';
@@ -57,8 +63,10 @@ function describe(e: unknown): string {
   return 'Something went wrong talking to GitHub. Your work is saved on this device.';
 }
 
-const BLOCKED =
-  'The other device has pushed changes, and this one has changes too. Merging arrives in the next build step: for now nothing was pulled or pushed, and your edits here are kept.';
+/** A Clash whose Item (or Project) still exists. */
+function stillThere(d: AppData, c: Clash): boolean {
+  return c.kind === 'project' ? !!d.docs[c.pid] : !!d.docs[c.pid]?.items[c.id];
+}
 
 export const useSync = create<Sync>((set, get) => {
   const note = (kind: Notice['kind'], text: string) => set({ notice: { kind, text, at: Date.now() } });
@@ -68,10 +76,29 @@ export const useSync = create<Sync>((set, get) => {
     await saveBase(base);
   }
 
-  /** Replace the data with what came from GitHub, unless the user edited meanwhile (then keep theirs). */
-  function adopt(snapshot: AppData, data: AppData) {
-    if (useStore.getState().data === snapshot) useStore.getState().apply(() => data);
+  async function setClashes(clashes: Clash[]) {
+    set({ clashes, resolverOpen: clashes.length > 0 && (get().resolverOpen || clashes.length > get().clashes.length) });
+    await saveClashes(clashes);
   }
+
+  /**
+   * Put data from GitHub (adopted or merged) on screen. If the user edited while the network call ran,
+   * their new edits are merged on top, so nothing typed meanwhile is lost.
+   */
+  function land(snapshot: AppData, incoming: AppData) {
+    const current = useStore.getState().data;
+    const next = current === snapshot ? incoming : merge(snapshot, current, incoming).result;
+    useStore.getState().apply(() => next);
+  }
+
+  async function addClashes(found: Clash[]) {
+    if (!found.length) return;
+    const rest = get().clashes.filter((c) => !found.some((f) => f.id === c.id));
+    await setClashes([...rest, ...found]);
+  }
+
+  const clashNote = (n: number) =>
+    `${n === 1 ? 'One Item was' : `${n} Items were`} changed differently on both devices. Choose which version to keep.`;
 
   return {
     base: null,
@@ -79,62 +106,79 @@ export const useSync = create<Sync>((set, get) => {
     busy: null,
     notice: null,
     choice: null,
-    blocked: false,
+    clashes: [],
+    resolverOpen: false,
     lastPulled: null,
     configVersion: 0,
 
     init: async () => {
-      set({ base: await loadBase(), baseLoaded: true });
+      const [base, clashes] = await Promise.all([loadBase(), loadClashes()]);
+      set({ base, clashes, baseLoaded: true, resolverOpen: clashes.length > 0 });
     },
 
     pullNow: async (quiet = false) => {
       if (!isConfigured() || get().busy || !get().baseLoaded || !useStore.getState().loaded) return;
       set({ busy: 'pull' });
+      let done!: () => void;
+      running = new Promise((r) => (done = r));
       const snapshot = useStore.getState().data;
       try {
         const r = await pull(gitClient(), get().base, snapshot);
-        set({ lastPulled: nowIso(), blocked: r.kind === 'blocked' });
+        set({ lastPulled: nowIso() });
         if (r.kind === 'unchanged') {
           if (r.base !== get().base) await setBase(r.base);
           if (!quiet) note('info', 'Up to date.');
         } else if (r.kind === 'adopt') {
-          adopt(snapshot, r.data);
+          land(snapshot, r.data);
           await setBase(r.base);
           if (!quiet) note('info', 'Pulled the latest from GitHub.');
+        } else if (r.kind === 'merged') {
+          land(snapshot, r.data);
+          await setBase(r.base);
+          await addClashes(r.clashes);
+          if (r.clashes.length) note('info', clashNote(r.clashes.length));
+          else if (!quiet) note('info', "Pulled the other device's changes and combined them with yours.");
         } else if (r.kind === 'empty') {
           if (!quiet) note('info', 'The GitHub repo is empty. Press Push to send your Projects.');
-        } else if (r.kind === 'choose') {
-          set({ choice: { remote: r.remote, base: r.base } });
         } else {
-          note('error', BLOCKED);
+          set({ choice: { remote: r.remote, base: r.base } });
         }
       } catch (e) {
         if (!quiet || !(e instanceof GitHubError && e.kind === 'offline')) note('error', describe(e));
       } finally {
         set({ busy: null });
+        done();
       }
     },
 
     pushNow: async () => {
-      if (!isConfigured() || get().busy) return;
+      if (!isConfigured() || get().busy === 'push') return;
+      if (get().busy === 'pull') await running; // e.g. the automatic Pull on returning to the app
+      if (get().busy) return;
+      if (get().clashes.length) {
+        set({ resolverOpen: true });
+        return;
+      }
       set({ busy: 'push' });
       const snapshot = useStore.getState().data;
       try {
         const r = await push(gitClient(), get().base, snapshot, deviceName());
         if (r.kind === 'pushed') {
+          if (r.data !== snapshot) land(snapshot, r.data); // the push included a merge
           await setBase(r.base);
-          set({ blocked: false, lastPulled: nowIso() });
+          set({ lastPulled: nowIso() });
           note('info', `Pushed: ${r.message}`);
         } else if (r.kind === 'nothing') {
-          adopt(snapshot, r.data);
+          if (r.data !== snapshot) land(snapshot, r.data);
           await setBase(r.base);
-          set({ blocked: false });
           note('info', 'Nothing to push: GitHub already has everything.');
+        } else if (r.kind === 'clashes') {
+          land(snapshot, r.data);
+          await setBase(r.base);
+          await addClashes(r.clashes);
+          note('info', clashNote(r.clashes.length) + ' Then press Push again.');
         } else if (r.kind === 'choose') {
           set({ choice: { remote: r.remote, base: r.base } });
-        } else if (r.kind === 'blocked') {
-          set({ blocked: true });
-          note('error', BLOCKED);
         } else {
           note('error', "Couldn't Push: the other device kept pushing at the same time. Try again.");
         }
@@ -152,13 +196,30 @@ export const useSync = create<Sync>((set, get) => {
       const local = useStore.getState().data;
       useStore.getState().apply(() => (keep === 'both' ? combine(local, c.remote) : c.remote));
       await setBase(c.base);
-      note('info', keep === 'both' ? 'Combined. Press Push to send this device\'s Projects to GitHub.' : 'This device now has GitHub\'s Projects.');
+      note('info', keep === 'both' ? "Combined. Press Push to send this device's Projects to GitHub." : "This device now has GitHub's Projects.");
     },
+
+    settle: async (choice) => {
+      const [first, ...rest] = get().clashes;
+      if (!first) return;
+      if (stillThere(useStore.getState().data, first)) {
+        useStore.getState().apply((d, now) => resolveClash(d, first, choice, now));
+      }
+      const left = rest.filter((c) => stillThere(useStore.getState().data, c));
+      set({ resolverOpen: left.length > 0 });
+      await setClashes(left);
+      if (!left.length) note('info', 'All settled. Press Push to send the result.');
+    },
+
+    setResolverOpen: (resolverOpen) => set({ resolverOpen }),
 
     settingsChanged: async (repoChanged) => {
       client = null;
-      set((s) => ({ configVersion: s.configVersion + 1, blocked: false }));
-      if (repoChanged) await setBase(null);
+      set((s) => ({ configVersion: s.configVersion + 1 }));
+      if (repoChanged) {
+        await setBase(null);
+        await setClashes([]);
+      }
     },
 
     dismiss: () => set({ notice: null }),

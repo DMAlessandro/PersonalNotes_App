@@ -1,9 +1,11 @@
-// Spec §6.1 Pull and §6.3 Push, for one device (slice 4). Merging two devices' changes is slice 5:
-// until then a Pull that finds changes on both sides stops and says so ('blocked'), touching nothing.
+// Spec §6.1 Pull and §6.3 Push. When both devices changed things since the last Pull, the three-way
+// merge (src/domain/merge.ts) combines them; Clashes go to the resolver before anything is pushed.
 import { gitBlobSha, type Git } from '../github/client';
 import { emptyData, type AppData } from '../domain/model';
 import { changedFiles, fromFiles, isDataPath, isEmptyData, stableJson, toFiles, type Files } from './files';
 import { commitMessage } from './changes';
+import { merge, type Clash } from '../domain/merge';
+import { canonical } from '../domain/canonical';
 
 /** The last commit this device pulled or pushed: the "base" of the three-way merge (spec §3.5). */
 export type Base = {
@@ -20,7 +22,7 @@ export type PullResult =
   | { kind: 'adopt'; data: AppData; base: Base }
   | { kind: 'empty' }
   | { kind: 'choose'; remote: AppData; base: Base }
-  | { kind: 'blocked'; base: Base };
+  | { kind: 'merged'; data: AppData; base: Base; clashes: Clash[] };
 
 const owned = (p: string) => p.startsWith('data/') || p.startsWith('readable/');
 
@@ -29,7 +31,7 @@ function dataFiles(d: AppData): Files {
   return Object.fromEntries(Object.entries(toFiles(d)).filter(([p]) => isDataPath(p)));
 }
 
-const sameData = (a: AppData, b: AppData) => JSON.stringify(dataFiles(a)) === JSON.stringify(dataFiles(b));
+const sameData = (a: AppData, b: AppData) => canonical(dataFiles(a)) === canonical(dataFiles(b));
 
 /** Union of two sets of data that share nothing yet (first connection, "Keep both"). */
 export function combine(local: AppData, remote: AppData): AppData {
@@ -78,14 +80,15 @@ export async function pull(git: Git, base: Base | null, local: AppData): Promise
   }
   if (sameData(remote.data, base.data)) return { kind: 'unchanged', base: remote }; // e.g. only readable/ moved
   if (sameData(local, base.data)) return { kind: 'adopt', data: remote.data, base: remote };
-  return { kind: 'blocked', base };
+  const m = merge(base.data, local, remote.data);
+  return { kind: 'merged', data: m.result, base: remote, clashes: m.clashes };
 }
 
 export type PushResult =
   | { kind: 'pushed'; base: Base; data: AppData; message: string }
   | { kind: 'nothing'; base: Base; data: AppData }
   | { kind: 'choose'; remote: AppData; base: Base }
-  | { kind: 'blocked'; base: Base }
+  | { kind: 'clashes'; data: AppData; base: Base; clashes: Clash[] }
   | { kind: 'busy' };
 
 const RETRIES = 3;
@@ -97,8 +100,13 @@ export async function push(git: Git, startBase: Base | null, startLocal: AppData
 
   for (let attempt = 0; attempt < RETRIES; attempt++) {
     const pr = await pull(git, base, local);
-    if (pr.kind === 'choose' || pr.kind === 'blocked') return pr;
-    if (pr.kind === 'adopt') {
+    if (pr.kind === 'choose') return pr;
+    if (pr.kind === 'merged') {
+      // Clashes are settled by the user first (spec §5.6); everything else merged silently and goes up now.
+      if (pr.clashes.length) return { kind: 'clashes', data: pr.data, base: pr.base, clashes: pr.clashes };
+      base = pr.base;
+      local = pr.data;
+    } else if (pr.kind === 'adopt') {
       base = pr.base;
       local = pr.data;
     } else if (pr.kind === 'unchanged') {

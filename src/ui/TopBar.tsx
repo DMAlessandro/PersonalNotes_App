@@ -59,7 +59,7 @@ export function TopBar({ view, onViewChange, unpushed, hasToken, busy, onOpenLog
       </span>
       <button
         className={busy ? 'push busy' : 'push'}
-        disabled={!!busy}
+        disabled={busy === 'push'}
         onClick={hasToken ? onPush : onOpenSettings}
         title={busy === 'pull' ? 'Pulling from GitHub…' : busy === 'push' ? 'Pushing to GitHub…' : undefined}
       >
