@@ -33,5 +33,6 @@ export function data(docs: ProjectDoc[], order: Record<string, string> = {}): Ap
       workspaces: {},
     },
     docs: Object.fromEntries(docs.map((d) => [d.project.id, d])),
+    log: {},
   };
 }

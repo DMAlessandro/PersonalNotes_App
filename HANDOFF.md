@@ -30,6 +30,8 @@ A personal notes/tasks PWA for one user (a researcher) on a Windows laptop and a
 - **GitHub (2026-10-02):** public `DMAlessandro/PersonalNotes_App` (this folder, `origin`) and private `DMAlessandro/PersonalNotes` (empty) exist. Pages deploys via `.github/workflows/deploy.yml` (test → build → deploy) to https://dmalessandro.github.io/PersonalNotes_App/. The fine-grained token is **not made yet** (user's step, needed by slice 4).
 - **Slice 1 (Shell on Pages) built and deployed:** Vite 8 + React 19 + TS 7, vite-plugin-pwa (generateSW), Vitest, production-only CSP meta (`vite.config.ts`), PNG icons from `scripts/make-icons.mjs`, top bar placeholders (`src/ui/TopBar.tsx`). On phones the badge shows the bare count and Push says "Set up". Checked by screenshots at 360/412px and laptop width; **not yet checked by the user on the phone** (install + offline).
 - **Slice 2 (Outline core, local) built and deployed 2026-10-02:** pure domain in `src/domain/` (model, fractional `orderKey`, `ordering`, `edits`, `structure`; 41 Vitest tests), IndexedDB Save (`src/store/db.ts`) + Zustand (`store.ts`, `ui.ts`), UI in `src/ui/` (ProjectList, ProjectView cards, ItemNode, Panel, TextEditor, useDrag). Checked with a Playwright script driving Edge (laptop and 412px). Choices made: editing starts with double-click/double-tap or menu -> Edit (as in the touch prototype); drag uses a handle on both devices (not long-press-drag); tick boxes are shown but disabled until slice 3; the unpushed badge stays 0 until slice 4.
+- **Slice 2 extras (user, 2026-10-02):** long-press opens the menu on touch (`src/ui/useLongPress.ts`); a Subtask button next to + with an "Under" picker.
+- **Slice 3 (Cross out, Delete, Change log) built 2026-10-02:** `src/domain/lifecycle.ts` (cross/un-cross with `crossSnap`, down-to-bottom, Delete only when crossed, restore-the-chain, Un-cross from log; Items and Projects), `src/domain/changelog.ts` (ISO weeks, labels, grouping); `AppData.log` holds entries by id, IndexedDB v2 adds a `log` store. UI: tick box, menus, in-app `Confirm`, `ChangeLog` panel (per-Project Log button, global in the ☰ menu), back gesture closes it. Timestamps now carry milliseconds. 73 tests; Playwright run on laptop and 412px.
 - The user did the slice-1 phone checkpoint: installed and offline both work.
 
 ## 3. Active Decisions & Constraints
@@ -67,8 +69,8 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 
 ## 5. Exact Next Step
 
-1. Slice 2 checkpoint: the user liked it and asked for long-press menus on touch and a Subtask shortcut next to + (both done 2026-10-02, recorded in spec 4.4 / 5.2). Wait for them to try these on the phone.
-2. Then build **slice 3 - Cross out, Delete, Change log** (spec section 8), test-first in `src/domain/`: cross/un-cross with `crossSnap`, down-to-bottom, Delete (only when crossed), Change-log entries per ISO week, restore-the-chain. UI: enable the tick box, menu entries, in-app Delete confirmation, per-Project Log and global Change log.
+1. Wait for the user's slice-3 checkpoint (spec section 8) on laptop and phone. Fix what they report.
+2. Then build **slice 4 - GitHub: first run, Pull, Push (one device)** (spec section 8, sections 5.7, 5.8, 6.1, 6.3). The user must make the fine-grained token first (only `PersonalNotes`, Contents: Read and write); the steps were given to them in chat on 2026-10-02. Device name: `src/store/device.ts` already guesses Phone/Laptop; Settings should let them set it.
 
 Tooling note: long heredocs in the Bash tool sometimes fail with "unexpected EOF"; use the Write tool for new files.
 

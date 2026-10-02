@@ -11,7 +11,7 @@ import { TextEditor } from './TextEditor';
 import { useDrag } from './useDrag';
 
 /** The Cards List view of one Project (spec §5.2). */
-export function ProjectView({ pid, onBack }: { pid: string; onBack?: () => void }) {
+export function ProjectView({ pid, onBack, onOpenLog }: { pid: string; onBack?: () => void; onOpenLog: () => void }) {
   const doc = useStore((s) => s.data.docs[pid]);
   const apply = useStore((s) => s.apply);
   const { editing, startEditing, stopEditing } = useUi();
@@ -47,7 +47,7 @@ export function ProjectView({ pid, onBack }: { pid: string; onBack?: () => void 
           </h1>
         )}
         {deadline && <DueChip due={deadline} />}
-        <button className="secondary small" disabled title="The Change log arrives in the next build step">
+        <button className="secondary small" onClick={onOpenLog}>
           Log
         </button>
       </header>

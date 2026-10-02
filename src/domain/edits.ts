@@ -60,6 +60,7 @@ const itemGroup = (it: Item) => (it.bottomed ? 2 : it.type === 'task' && it.due 
 export function addProject(data: AppData, p: { id: string; title: string }, now: Timestamp): AppData {
   const order = keyAtEnd(Object.values(data.index.projectOrder).map((o) => o.order));
   return {
+    ...data,
     index: { ...data.index, projectOrder: { ...data.index.projectOrder, [p.id]: { order, at: now } } },
     docs: {
       ...data.docs,

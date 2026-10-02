@@ -10,6 +10,9 @@ type Ui = {
   fresh: Set<string>;
   /** Per Project: the Task last chosen in the "Add Subtask" panel, offered again next time. */
   lastSubtaskParent: Record<string, string>;
+  /** Open Change log: `{ pid }` for a Project's Log, `{ pid: null }` for the global one. */
+  log: { pid: string | null } | null;
+  setLog: (log: { pid: string | null } | null) => void;
   setOpenProject: (id: string | null) => void;
   startEditing: (key: string | null, fresh?: string) => void;
   stopEditing: (fresh?: string) => void;
@@ -21,6 +24,8 @@ export const useUi = create<Ui>((set) => ({
   editing: null,
   fresh: new Set(),
   lastSubtaskParent: {},
+  log: null,
+  setLog: (log) => set({ log }),
   setOpenProject: (openProject) => set({ openProject, editing: null }),
   startEditing: (editing, freshId) =>
     set((s) => ({ editing, fresh: freshId ? new Set([...s.fresh, freshId]) : s.fresh })),

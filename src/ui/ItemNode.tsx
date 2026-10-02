@@ -13,6 +13,9 @@ import { TextEditor } from './TextEditor';
 import { DueSheet } from './DueSheet';
 import { useDrag } from './useDrag';
 import { useLongPress } from './useLongPress';
+import { Confirm } from './Confirm';
+import { crossOut, deleteItem, sendToBottom, uncross } from '../domain/lifecycle';
+import { deviceName } from '../store/device';
 
 export const groupOf = (pid: string, parent: string | null) => `items:${pid}:${parent ?? 'root'}`;
 
@@ -34,6 +37,7 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
   const { editing, fresh, startEditing, stopEditing } = useUi();
   const [menu, setMenu] = useState<DOMRect | null>(null);
   const [dueOpen, setDueOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const longPress = useLongPress((el) => setMenu(el.getBoundingClientRect()));
   const kids = children(doc, item.id);
   const prog = progress(doc, item.id);
@@ -80,10 +84,15 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
     startEditing(`item:${item.id}`);
   };
 
+  const toggleCross = () =>
+    apply((d, now) => (item.crossed ? uncross(d, pid, item.id, now) : crossOut(d, pid, item.id, now, deviceName())));
+
   const dates = [
     `created ${shortDate(item.created)}`,
     item.edited.slice(0, 10) !== item.created.slice(0, 10) && `edited ${shortDate(item.edited)}`,
+    item.crossedAt && `crossed out ${shortDate(item.crossedAt)}`,
   ].filter(Boolean);
+  const under = countDescendants(doc, item.id);
 
   const row = (
     <div className="row" {...(isEditing ? {} : longPress)}>
@@ -103,7 +112,13 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
         <span className="fold" />
       )}
       {isTask ? (
-        <input type="checkbox" className="tick" checked={item.crossed} disabled title="Ticking arrives in the next build step" readOnly />
+        <input
+          type="checkbox"
+          className="tick"
+          checked={item.crossed}
+          aria-label={item.crossed ? 'Un-tick' : 'Tick'}
+          onChange={toggleCross}
+        />
       ) : (
         <span className="note-mark" aria-hidden="true" />
       )}
@@ -124,10 +139,19 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
         <div className="meta">
           {item.due && <DueChip due={item.due} muted={item.crossed} />}
           {prog && <span className="count">{`${prog.done}/${prog.total}`}</span>}
-          {item.folded && kids.length > 0 && <span className="count">{`+${countDescendants(doc, item.id)}`}</span>}
+          {item.folded && kids.length > 0 && <span className="count">{`+${under}`}</span>}
           <span className="dates">{dates.join(' · ')}</span>
         </div>
       </div>
+      {item.crossed && !item.bottomed && (
+        <button
+          className="to-bottom"
+          title="Move to the bottom of this level"
+          onClick={() => apply((d, now) => sendToBottom(d, pid, item.id, now))}
+        >
+          ↓ bottom
+        </button>
+      )}
       <button className="more" aria-label="Item menu" onClick={(e) => setMenu(e.currentTarget.getBoundingClientRect())}>
         ⋯
       </button>
@@ -136,7 +160,7 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
 
   return (
     <div
-      className={`${depth === 0 ? 'card' : 'node'} ${isTask ? 'task' : 'note'}`}
+      className={`${depth === 0 ? 'card' : 'node'} ${isTask ? 'task' : 'note'}${item.crossed ? ' crossed' : ''}`}
       data-drag-group={groupOf(pid, item.parent)}
       data-drag-id={item.id}
       style={{ ['--depth' as string]: depth }}
@@ -166,11 +190,23 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
               !isTask && { label: 'Make Task', onSelect: () => apply((d, now) => makeTask(d, pid, item.id, now)) },
               canIndent(doc, item.id) && { label: 'Indent', onSelect: () => apply((d, now) => indent(d, pid, item.id, now)) },
               canOutdent(doc, item.id) && { label: 'Outdent', onSelect: () => apply((d, now) => outdent(d, pid, item.id, now)) },
+              { label: item.crossed ? 'Un-cross' : 'Cross out', onSelect: toggleCross },
+              item.crossed && !item.bottomed && { label: '↓ Move to bottom', onSelect: () => apply((d, now) => sendToBottom(d, pid, item.id, now)) },
+              item.crossed && { label: 'Delete…', danger: true, onSelect: () => setConfirmDelete(true) },
             ]}
           />
         </Panel>
       )}
       {dueOpen && <DueSheet pid={pid} item={item} onClose={() => setDueOpen(false)} />}
+      {confirmDelete && (
+        <Confirm
+          title={`Delete "${item.text.split('\n')[0]}"?`}
+          body={`${under ? `This also deletes the ${under === 1 ? 'Item' : `${under} Items`} under it. ` : ''}You can restore it from the Change log.`}
+          confirmLabel="Delete"
+          onConfirm={() => apply((d, now) => deleteItem(d, pid, item.id, now, deviceName()))}
+          onClose={() => setConfirmDelete(false)}
+        />
+      )}
     </div>
   );
 }

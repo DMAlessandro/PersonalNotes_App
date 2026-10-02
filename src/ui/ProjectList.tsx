@@ -9,6 +9,9 @@ import { Menu, Panel } from './Panel';
 import { TextEditor } from './TextEditor';
 import { useDrag } from './useDrag';
 import { useLongPress } from './useLongPress';
+import { Confirm } from './Confirm';
+import { crossProject, deleteProject, sendProjectToBottom, uncrossProject } from '../domain/lifecycle';
+import { deviceName } from '../store/device';
 
 /** Spec §5.1: the Projects in the one manual order, dated ones first. */
 export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
@@ -17,6 +20,11 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
   const { openProject, editing, startEditing, stopEditing } = useUi();
   const [creating, setCreating] = useState(false);
   const [menu, setMenu] = useState<{ pid: string; at: DOMRect } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const toggleCross = (pid: string) =>
+    apply((d, now) =>
+      d.docs[pid].project.crossed ? uncrossProject(d, pid, now) : crossProject(d, pid, now, deviceName()),
+    );
   const drag = useDrag('projects', (id, index) => apply((d, now) => moveProject(d, id, index, now)));
   const ids = sortedProjectIds(data);
   const longPress = useLongPress((el) => {
@@ -43,7 +51,7 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
               key={pid}
               data-drag-group="projects"
               data-drag-id={pid}
-              className={pid === openProject ? 'p-row selected' : 'p-row'}
+              className={`p-row${pid === openProject ? ' selected' : ''}${doc.project.crossed ? ' crossed' : ''}`}
               {...(renaming ? {} : longPress)}
             >
               <button className="handle" aria-label="Drag to reorder" onPointerDown={drag(pid)}>
@@ -66,6 +74,15 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
                     {deadline && <DueChip due={deadline} />}
                     <span className="count">{open === 1 ? '1 open' : `${open} open`}</span>
                   </span>
+                </button>
+              )}
+              {doc.project.crossed && !doc.project.bottomed && (
+                <button
+                  className="to-bottom"
+                  title="Move to the bottom of the list"
+                  onClick={() => apply((d, now) => sendProjectToBottom(d, pid, now))}
+                >
+                  ↓ bottom
                 </button>
               )}
               <button
@@ -104,9 +121,34 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
         <Panel anchor={menu.at} onClose={() => setMenu(null)} label="Project menu">
           <Menu
             onClose={() => setMenu(null)}
-            entries={[{ label: 'Rename', onSelect: () => startEditing(`project:${menu.pid}`) }]}
+            entries={[
+              { label: 'Rename', onSelect: () => startEditing(`project:${menu.pid}`) },
+              { label: data.docs[menu.pid].project.crossed ? 'Un-cross' : 'Cross out', onSelect: () => toggleCross(menu.pid) },
+              data.docs[menu.pid].project.crossed &&
+                !data.docs[menu.pid].project.bottomed && {
+                  label: '↓ Move to bottom',
+                  onSelect: () => apply((d, now) => sendProjectToBottom(d, menu.pid, now)),
+                },
+              data.docs[menu.pid].project.crossed && {
+                label: 'Delete…',
+                danger: true,
+                onSelect: () => setConfirmDelete(menu.pid),
+              },
+            ]}
           />
         </Panel>
+      )}
+      {confirmDelete && data.docs[confirmDelete] && (
+        <Confirm
+          title={`Delete the Project "${data.docs[confirmDelete].project.title}"?`}
+          body={(() => {
+            const n = Object.keys(data.docs[confirmDelete].items).length;
+            return `${n ? `Its ${n === 1 ? 'Item goes' : `${n} Items go`} with it. ` : ''}You can restore it from the Change log.`;
+          })()}
+          confirmLabel="Delete"
+          onConfirm={() => apply((d, now) => deleteProject(d, confirmDelete, now, deviceName()))}
+          onClose={() => setConfirmDelete(null)}
+        />
       )}
     </nav>
   );

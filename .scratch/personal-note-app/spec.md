@@ -23,7 +23,7 @@ Not in v1 (from `map.md` → Out of scope): native installers, other users, manu
 
 ### 2.1 Records
 
-All ids are random, stable strings made on the device (`p_` + 10 base-36 chars for Projects, `i_` for Items, `w_` for Workspaces, `c_` for Change-log entries). Timestamps are ISO 8601 with the device's offset (`2026-10-02T09:14:00+02:00`). Due dates are plain dates (`2026-10-10`).
+All ids are random, stable strings made on the device (`p_` + 10 base-36 chars for Projects, `i_` for Items, `w_` for Workspaces, `c_` for Change-log entries). Timestamps are ISO 8601 with milliseconds and the device's offset (`2026-10-02T09:14:00.123+02:00`); they are always compared as real instants (`Date.parse`), never as strings, because the offset can differ (clock changes, travel). Due dates are plain dates (`2026-10-10`).
 
 **Project**
 
@@ -309,7 +309,7 @@ One top bar on every screen: **menu** (☰), **Workspace picker** (All Projects 
 - Grouped by week, newest first: "This week", "Last week", "Week 38"….
 - Each entry: what happened (Crossed out / Deleted / Restored), Item text, Project, date, device, number of Items under it.
 - **Restore** (on `deleted` entries): brings back the branch where it was. If its parent Task or its Project is also gone, they come back too (from `ancestors` / `project`). Restored Items keep their ids. Adds a `restored` entry; the old entry stays. If the Item already exists again (restored before), the button is disabled.
-- **Un-cross** (on `crossed` entries) while that Item is still crossed out.
+- **Un-cross** (on `crossed` entries) while that Item is still crossed out, offered only on the newest Cross-out entry of that Item.
 - Entries are permanent.
 
 ### 5.6 Clash resolver (ticket 05)

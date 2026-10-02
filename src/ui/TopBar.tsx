@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { Menu, Panel } from './Panel';
+
 export type ViewMode = 'list' | 'map';
 
 type Props = {
@@ -5,15 +8,22 @@ type Props = {
   onViewChange: (v: ViewMode) => void;
   unpushed: number;
   hasToken: boolean;
+  onOpenLog: () => void;
 };
 
 // Spec §5: menu, Workspace picker, List/Map switch, search, "N unpushed" badge (always visible), Push.
-export function TopBar({ view, onViewChange, unpushed, hasToken }: Props) {
+export function TopBar({ view, onViewChange, unpushed, hasToken, onOpenLog }: Props) {
+  const [menu, setMenu] = useState<DOMRect | null>(null);
   return (
     <header className="topbar">
-      <button className="icon-btn" aria-label="Menu" disabled>
+      <button className="icon-btn" aria-label="Menu" onClick={(e) => setMenu(e.currentTarget.getBoundingClientRect())}>
         ☰
       </button>
+      {menu && (
+        <Panel anchor={menu} onClose={() => setMenu(null)} label="Menu">
+          <Menu onClose={() => setMenu(null)} entries={[{ label: 'Change log', onSelect: onOpenLog }]} />
+        </Panel>
+      )}
       <select className="workspace" aria-label="Workspace" defaultValue="all">
         <option value="all">All Projects</option>
       </select>
