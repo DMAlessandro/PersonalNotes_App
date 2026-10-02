@@ -28,10 +28,12 @@ select,.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);
 .zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px;z-index:3}
 .node{position:absolute;display:flex;align-items:flex-start;gap:4px;padding:4px 6px;border:1px solid var(--line);border-radius:9px;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.06);transition:box-shadow .15s}
 .node.pressing{box-shadow:0 0 0 4px rgba(47,111,222,.35)}
-.node .txt{flex:1;min-width:0;white-space:normal;word-break:normal;overflow-wrap:break-word;hyphens:manual} /* full text, wrapped between whole words; only a single over-long word (e.g. a URL) may break */
+.nb{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.node .txt{white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:manual} /* full text, wrapped only between whole words */
+.node .meta{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
 .node .inl{flex:1;min-width:0;font:inherit;resize:none;overflow-wrap:break-word;border:1px solid var(--accent);border-radius:6px;padding:2px 4px;background:var(--card);color:var(--fg);-webkit-user-select:text;user-select:text}
 .node.t-project{background:var(--proj);border-color:var(--accent);font-weight:600}
-.node.t-ws{background:var(--accent);color:#fff;border-color:var(--accent);border-radius:20px;font-weight:700;justify-content:center}
+.node.t-ws{background:var(--accent);color:#fff;border-color:var(--accent);border-radius:20px;font-weight:700;align-items:center}
 .node.t-ws .btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
 .node.t-note{border-style:dashed;background:transparent;font-size:12px;font-style:italic;color:var(--muted)}
 .node.crossed{opacity:.55}.node.crossed .txt{text-decoration:line-through}
@@ -72,6 +74,7 @@ input[type=checkbox]{margin:1px 0 0;width:15px;height:15px;cursor:pointer;flex:n
 <script>
 const VARIANTS = [['inline', 'Edit on the box'], ['panel', 'Edit in bottom panel']];
 const W = 180, TODAY = '2026-10-01', MIN_S = 0.85;
+const MAXW = 210, MINW = 96; // boxes shrink-wrap their text up to ~MAXW; a word that doesn't fit widens the box instead of being split
 let H = 46, NH = 36, uid = 1;
 const coarse = matchMedia('(pointer: coarse)').matches;
 const T = (text, o = {}) => ({ id: 'i' + uid++, type: 'task', text, crossed: !!o.crossed, collapsed: !!o.crossed, due: o.due || null, children: o.children || [], bottomed: false, snap: null });
@@ -89,7 +92,7 @@ const teaching = P('Teaching', [T('Prepare lecture 5', { due: '2026-10-06', chil
 const home = P('Home renovation', [T('Choose tiles', { due: '2026-10-12', children: [N('Showroom closes at 18:00')] }), T('Call electrician'), T('Paint bedroom', { crossed: true })]);
 const state = {
   variant: (() => { try { return new URLSearchParams(location.search).get('variant') || 'inline'; } catch (_) { return 'inline'; } })(),
-  phone: coarse, layout: 'A', ws: 'all', menu: null, editing: null, sheet: null,
+  phone: coarse || (() => { try { return /phone/.test(location.search); } catch (_) { return false; } })(), layout: 'A', ws: 'all', menu: null, editing: null, sheet: null,
   projects: [grant, teaching, home],
   workspaces: [{ id: 'all', name: 'All Projects' }, { id: 'w1', name: 'Research', ids: [grant.id, teaching.id] }, { id: 'w2', name: 'This week', ids: [grant.id, home.id] }],
 };
@@ -182,11 +185,13 @@ function layout(root) {
   measure(out);
   const GAP = 12;
   if (state.layout === 'A') {
-    // Columns by depth; each subtree gets a vertical band tall enough for its tallest box.
+    // Columns by depth, each as wide as its widest box; each subtree gets a vertical band tall enough for its tallest box.
+    const colW = []; out.forEach(t => { colW[t.depth] = Math.max(colW[t.depth] || 0, t.w); });
+    const colLeft = colW.map((_, d) => colW.slice(0, d).reduce((a, w) => a + w + 60, 0));
     let cursor = 0;
     const shift = (t, d) => { t.y += d; t.kids.forEach(k => shift(k, d)); };
     (function place(t) {
-      t.x = t.depth * (W + 70);
+      t.x = colLeft[t.depth] + t.w / 2;
       const bandTop = cursor;
       if (!t.kids.length) { t.y = cursor + t.h / 2; cursor += t.h + GAP; return; }
       t.kids.forEach(place);
@@ -196,23 +201,49 @@ function layout(root) {
     })(out[0]);
   } else {
     // Rows by depth; each row as tall as its tallest box; leaves spread evenly across.
-    let leaf = 0; const rowH = [];
+    const rowH = [];
     out.forEach(t => { rowH[t.depth] = Math.max(rowH[t.depth] || 0, t.h); });
     const rowTop = rowH.map((_, d) => rowH.slice(0, d).reduce((a, h) => a + h + 70, 0));
-    (function lv(t) { t.kids.forEach(lv); t.leaf = t.kids.length ? (t.kids[0].leaf + t.kids[t.kids.length - 1].leaf) / 2 : leaf++; })(out[0]);
-    out.forEach(t => { t.x = t.leaf * (W + 18); t.y = rowTop[t.depth] + t.h / 2; });
+    let cursor = 0;
+    const shift = (t, d) => { t.x += d; t.kids.forEach(k => shift(k, d)); };
+    (function place(t) {
+      t.y = rowTop[t.depth] + t.h / 2;
+      const bandLeft = cursor;
+      if (!t.kids.length) { t.x = cursor + t.w / 2; cursor += t.w + 16; return; }
+      t.kids.forEach(place);
+      t.x = (t.kids[0].x + t.kids[t.kids.length - 1].x) / 2;
+      if (t.x - t.w / 2 < bandLeft) { const d = bandLeft - (t.x - t.w / 2); shift(t, d); cursor += d; }
+      cursor = Math.max(cursor, t.x + t.w / 2 + 16);
+    })(out[0]);
   }
   return out;
 }
-// Measure each box's real height at width W so no text is ever cut off.
+// Measure each box: wrap its text at up to MAXW, then shrink the box to the widest wrapped line
+// (or grow it if one word is longer), then read the height. Words are never split.
 function measure(list) {
   const m = document.getElementById('measure');
-  m.innerHTML = list.map(t => nodeHtml({ ...t, x: W / 2, y: 0, h: 0, measuring: true })).join('');
-  [...m.children].forEach((el, i) => { list[i].h = Math.max(hOf(list[i].n), Math.ceil(el.offsetHeight || 0)); });
+  m.innerHTML = list.map(t => nodeHtml({ ...t, measuring: true })).join('');
+  [...m.children].forEach((el, i) => {
+    let w = el.offsetWidth || W;
+    const txt = el.querySelector && el.querySelector('.txt'), nb = el.querySelector && el.querySelector('.nb');
+    if (txt && nb && document.createRange) {
+      const r = document.createRange(); r.selectNodeContents(txt);
+      const rects = [...r.getClientRects()];
+      if (rects.length) {
+        const tw = Math.max(...rects.map(q => q.right)) - Math.min(...rects.map(q => q.left));
+        const meta = el.querySelector('.meta'), mw = meta ? meta.scrollWidth : 0;
+        w = el.offsetWidth - nb.offsetWidth + Math.max(tw, mw) + 2;
+      }
+    }
+    w = Math.max(MINW, Math.ceil(w));
+    if (el.style) { el.style.maxWidth = 'none'; el.style.width = w + 'px'; }
+    list[i].w = w;
+    list[i].h = Math.max(hOf(list[i].n), Math.ceil(el.offsetHeight || 0));
+  });
   m.innerHTML = '';
 }
 function edge(p, c) {
-  if (state.layout === 'A') { const x1 = p.x + W / 2, x2 = c.x - W / 2; return `M${x1},${p.y} C${x1 + 35},${p.y} ${x2 - 35},${c.y} ${x2},${c.y}`; }
+  if (state.layout === 'A') { const x1 = p.x + p.w / 2, x2 = c.x - c.w / 2; return `M${x1},${p.y} C${x1 + 35},${p.y} ${x2 - 35},${c.y} ${x2},${c.y}`; }
   const y1 = p.y + p.h / 2, y2 = c.y - c.h / 2; return `M${p.x},${y1} C${p.x},${y1 + 35} ${c.x},${y2 - 35} ${c.x},${y2}`;
 }
 
@@ -222,8 +253,8 @@ const fmt = d => new Date(d + 'T12:00').toLocaleDateString('en-GB', { day: 'nume
 const chip = n => { const d = dueOf(n); return d ? `<span class="due ${!n.crossed && d < TODAY ? 'late' : ''}">${fmt(d)}</span>` : ''; };
 function prog(n) { const ds = desc(n).filter(d => d.type !== 'note'); return ds.length ? `<span class="prog">${ds.filter(d => d.crossed).length}/${ds.length}</span>` : ''; }
 function nodeHtml(t) {
-  const n = t.n, pos = t.measuring ? `left:0;top:0;width:${W}px` : `left:${t.x - W / 2}px;top:${t.y - t.h / 2}px;width:${W}px;min-height:${t.h}px`;
-  if (n.type === 'ws') return `<div class="node t-ws" style="${pos}"><span>${esc(n.text)}</span><button class="btn tiny" data-a="addProject">+ Project</button></div>`;
+  const n = t.n, pos = t.measuring ? `left:0;top:0;width:max-content;max-width:${MAXW}px;min-width:${MINW}px` : `left:${t.x - t.w / 2}px;top:${t.y - t.h / 2}px;width:${t.w}px;min-height:${t.h}px`;
+  if (n.type === 'ws') return `<div class="node t-ws" style="${pos}"><div class="nb"><span class="txt">${esc(n.text)}</span></div><button class="btn tiny" data-a="addProject">+ Project</button></div>`;
   const editing = state.editing && state.editing.id === n.id;
   const fold = n.children.length ? `<button class="fold" data-a="fold" data-id="${n.id}">${n.collapsed ? '▸' : '▾'}</button>` : '';
   const hidden = n.collapsed && n.children.length ? `<span class="hidden-count">+${desc(n).length}</span>` : '';
@@ -231,7 +262,7 @@ function nodeHtml(t) {
   const text = editing && !t.measuring ? `<textarea class="inl" id="inl" rows="${Math.max(1, Math.ceil(n.text.length / 20))}" placeholder="${n.type === 'note' ? 'Note…' : n.type === 'project' ? 'Project name…' : 'Task…'}" enterkeyhint="done">${esc(n.text)}</textarea>`
     : `<span class="txt" data-edit="${n.id}">${esc(n.text)}</span>`;
   return `<div class="node t-${n.type} ${n.crossed ? 'crossed' : ''} ${state.menu === n.id ? 'sel' : ''}" data-node="${n.id}" style="${pos}">
-    ${fold}${mark}${text}${editing ? '' : hidden + (n.type !== 'note' ? prog(n) : '') + chip(n)}
+    ${fold}${mark}<div class="nb">${text}${(() => { const meta = editing ? '' : hidden + (n.type !== 'note' ? prog(n) : '') + chip(n); return meta ? `<div class="meta">${meta}</div>` : ''; })()}</div>
     ${editing ? '' : `<button class="mbtn" data-a="menu" data-id="${n.id}" aria-label="Menu">⋯</button>`}</div>`;
 }
 function menuButtons(n, cls) {
@@ -250,7 +281,7 @@ function renderMap() {
   nodes = layout({ id: 'root', type: 'ws', text: curWs().name, children: wsProjects() });
   const paths = nodes.filter(t => t.parent).map(t => `<path d="${edge(t.parent, t)}"/>`).join('');
   const m = nodes.find(t => t.n.id === state.menu);
-  const pop = m && !isTouchUi() ? `<div class="pop" style="left:${m.x - W / 2}px;top:${m.y + m.h / 2 + 6}px">${menuButtons(m.n, 'btn tiny')}</div>` : '';
+  const pop = m && !isTouchUi() ? `<div class="pop" style="left:${m.x - m.w / 2}px;top:${m.y + m.h / 2 + 6}px">${menuButtons(m.n, 'btn tiny')}</div>` : '';
   document.getElementById('world').innerHTML = `<svg id="edges">${paths}</svg>${nodes.map(nodeHtml).join('')}${pop}`;
   applyView();
   const inl = document.getElementById('inl');
@@ -291,7 +322,7 @@ const vp = document.getElementById('vp');
 function applyView() { document.getElementById('world').style.transform = `translate(${view.tx}px,${view.ty}px) scale(${view.s})`; }
 function fit() {
   if (!nodes.length) return;
-  const minX = Math.min(...nodes.map(t => t.x - W / 2)), maxX = Math.max(...nodes.map(t => t.x + W / 2));
+  const minX = Math.min(...nodes.map(t => t.x - t.w / 2)), maxX = Math.max(...nodes.map(t => t.x + t.w / 2));
   const minY = Math.min(...nodes.map(t => t.y - t.h / 2)), maxY = Math.max(...nodes.map(t => t.y + t.h / 2));
   const r = vp.getBoundingClientRect(), pad = 30;
   const fitS = Math.min(1.2, (r.width - pad) / (maxX - minX), (r.height - pad) / (maxY - minY));
