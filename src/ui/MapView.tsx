@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
 import { addItem, addProject, setFolded, setProjectFolded } from '../domain/edits';
 import { newId } from '../domain/ids';
-import { edgePath, layout, openingView, zoomAt, type Box, type Direction, type Size, type View } from '../map/layout';
+import { edgePath, layout, openingView, revealBox, zoomAt, type Box, type Direction, type Size, type View } from '../map/layout';
 import { mapTree, type MapNode } from '../map/tree';
 import { useStore } from '../store/store';
 import { useUi } from '../store/ui';
@@ -250,6 +250,8 @@ export function MapView() {
   const lay = useMemo(() => layout(tree, (k) => sizes[k] ?? { w: MINW, h: 40 }, dir), [tree, sizes, dir]);
   const byKey = useMemo(() => Object.fromEntries(lay.boxes.map((b) => [b.key, b])), [lay]);
   const ready = nodes.every((n) => sizes[n.key]);
+  const byKeyRef = useRef(byKey);
+  byKeyRef.current = byKey;
 
   const vpSize = (): Size => {
     const r = vpRef.current?.getBoundingClientRect();
@@ -303,33 +305,48 @@ export function MapView() {
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
-  // Pan with one pointer on the background, pinch with two.
+  // Pan with one pointer that starts on the background; pinch with two, wherever the fingers land.
+  const viewRef = useRef(view);
+  viewRef.current = view;
   const pts = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<
     | { kind: 'pan'; x: number; y: number; v: View }
     | { kind: 'pinch'; d0: number; s0: number; wx: number; wy: number }
     | null
   >(null);
-  const rel = (e: RPointerEvent) => {
+  const rel = (x: number, y: number) => {
     const r = vpRef.current!.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    return { x: x - r.left, y: y - r.top };
+  };
+  const startPinch = () => {
+    const [a, b] = [...pts.current.values()];
+    const v = viewRef.current;
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    gesture.current = { kind: 'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: v.s, wx: (mid.x - v.tx) / v.s, wy: (mid.y - v.ty) / v.s };
   };
   const onPointerDown = (e: RPointerEvent<HTMLDivElement>) => {
-    const onBackground = !(e.target as HTMLElement).closest('.mbox, .map-tools, [role=dialog]');
-    if (!onBackground && pts.current.size === 0) return;
-    pts.current.set(e.pointerId, rel(e));
-    e.currentTarget.setPointerCapture(e.pointerId);
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('.map-tools, [role=dialog], textarea')) return;
+    const onBackground = !(e.target as HTMLElement).closest('.mbox');
+    pts.current.set(e.pointerId, rel(e.clientX, e.clientY));
+    const capture = (id: number) => {
+      try {
+        e.currentTarget.setPointerCapture(id);
+      } catch {
+        /* pointer already gone */
+      }
+    };
     if (pts.current.size === 2) {
-      const [a, b] = [...pts.current.values()];
-      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-      gesture.current = { kind: 'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: view.s, wx: (mid.x - view.tx) / view.s, wy: (mid.y - view.ty) / view.s };
-    } else {
-      gesture.current = { kind: 'pan', x: e.clientX, y: e.clientY, v: view };
+      pts.current.forEach((_, id) => capture(id));
+      startPinch();
+    } else if (pts.current.size === 1 && onBackground) {
+      capture(e.pointerId);
+      gesture.current = { kind: 'pan', x: e.clientX, y: e.clientY, v: viewRef.current };
     }
   };
   const onPointerMove = (e: RPointerEvent<HTMLDivElement>) => {
     if (!pts.current.has(e.pointerId)) return;
-    pts.current.set(e.pointerId, rel(e));
+    pts.current.set(e.pointerId, rel(e.clientX, e.clientY));
     const g = gesture.current;
     if (g?.kind === 'pinch' && pts.current.size === 2) {
       const [a, b] = [...pts.current.values()];
@@ -340,14 +357,51 @@ export function MapView() {
       setView({ ...g.v, tx: g.v.tx + e.clientX - g.x, ty: g.v.ty + e.clientY - g.y });
     }
   };
-  const onPointerUp = (e: RPointerEvent<HTMLDivElement>) => {
-    pts.current.delete(e.pointerId);
-    if (pts.current.size === 1) {
+  const endPointer = (id: number) => {
+    if (!pts.current.delete(id)) return;
+    if (pts.current.size === 1 && gesture.current?.kind === 'pinch') {
+      // One finger stays down after a pinch: carry on panning from where it is.
       const [p] = [...pts.current.values()];
       const r = vpRef.current!.getBoundingClientRect();
-      gesture.current = { kind: 'pan', x: p.x + r.left, y: p.y + r.top, v: view };
+      gesture.current = { kind: 'pan', x: p.x + r.left, y: p.y + r.top, v: viewRef.current };
     } else if (!pts.current.size) gesture.current = null;
   };
+  // A pointer that started on a box isn't captured, so it may be lifted outside the map.
+  useEffect(() => {
+    const up = (e: PointerEvent) => endPointer(e.pointerId);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Editing on the box: keep it in view, also when the phone keyboard makes the map smaller.
+  const revealed = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!editing) {
+      revealed.current = null;
+      return;
+    }
+    const b = byKey[editing];
+    // Wait for the box to be measured at its editing width, or the reveal is based on the wrong size.
+    if (!b || revealed.current === editing || (sizes[editing]?.w ?? 0) < EDIT_MINW) return;
+    revealed.current = editing;
+    setView((v) => revealBox(v, b, vpSize()));
+  }, [editing, byKey, sizes]);
+  useEffect(() => {
+    const el = vpRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const key = useUi.getState().editing;
+      const b = key ? byKeyRef.current[key] : undefined;
+      if (b) setView((v) => revealBox(v, b, vpSize()));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <main className="map">
@@ -371,8 +425,8 @@ export function MapView() {
         className="map-vp"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onPointerUp={(e) => endPointer(e.pointerId)}
+        onPointerCancel={(e) => endPointer(e.pointerId)}
       >
         <div className="map-world" style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.s})` }}>
           <svg className="map-edges" width={lay.width} height={lay.height} aria-hidden="true">

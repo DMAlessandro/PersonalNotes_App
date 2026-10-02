@@ -116,3 +116,27 @@ export function zoomAt(v: View, k: number, cx: number, cy: number): View {
   const r = s / v.s;
   return { s, tx: cx - (cx - v.tx) * r, ty: cy - (cy - v.ty) * r };
 }
+
+/**
+ * Bring a box fully into the viewport with a margin, moving as little as possible; first zoom up to 1 if the
+ * view is too small to read or type in. Same view object back when nothing needs to change.
+ */
+export function revealBox(v: View, b: Box, vp: Size, margin = 16): View {
+  let view = v;
+  if (view.s < MIN_OPEN_SCALE) {
+    // Zoom to 1 around the box's centre, then pan below.
+    const cx = view.tx + (b.x + b.w / 2) * view.s;
+    const cy = view.ty + (b.y + b.h / 2) * view.s;
+    view = { s: 1, tx: cx - (b.x + b.w / 2), ty: cy - (b.y + b.h / 2) };
+  }
+  const axis = (t: number, start: number, size: number, room: number) => {
+    const lo = t + start * view.s;
+    const hi = lo + size * view.s;
+    if (hi - lo > room - 2 * margin || lo < margin) return t + (margin - lo);
+    if (hi > room - margin) return t - (hi - (room - margin));
+    return t;
+  };
+  const tx = axis(view.tx, b.x, b.w, vp.w);
+  const ty = axis(view.ty, b.y, b.h, vp.h);
+  return tx === v.tx && ty === v.ty && view.s === v.s ? v : { ...view, tx, ty };
+}

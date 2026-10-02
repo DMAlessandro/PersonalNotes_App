@@ -382,7 +382,7 @@ main.map { flex: 1; min-height: 0; display: flex; flex-direction: column; positi
 .m-tick { flex: none; width: 15px; height: 15px; margin: 2px 0 0; accent-color: var(--accent); }
 .m-more { flex: none; border: 0; background: none; color: var(--muted); padding: 0 2px; font-size: 14px; line-height: 19px; border-radius: 4px; }
 .m-more:hover, .m-fold:hover { background: var(--soft); }
-.mbox .editor { flex: 1; min-width: 0; font: inherit; resize: none; border: 1px solid var(--accent); border-radius: 6px; padding: 2px 4px; background: var(--card); color: var(--text); overflow-wrap: break-word; user-select: text; -webkit-user-select: text; }
+.mbox .editor { flex: none; width: 100%; min-width: 0; font: inherit; resize: none; border: 1px solid var(--accent); border-radius: 6px; padding: 2px 4px; background: var(--card); color: var(--text); overflow-wrap: break-word; user-select: text; -webkit-user-select: text; }
 .m-project { background: color-mix(in srgb, var(--accent) 12%, var(--card)); border-color: var(--accent); font-weight: 600; }
 .m-ws { background: var(--accent); color: var(--accent-text); border-color: var(--accent); border-radius: 20px; font-weight: 700; align-items: center; padding: 6px 8px 6px 14px; }
 .m-add { flex: none; border: 1px solid color-mix(in srgb, var(--accent-text) 60%, transparent); background: transparent; color: inherit; border-radius: 8px; font-size: 12px; padding: 1px 7px; }

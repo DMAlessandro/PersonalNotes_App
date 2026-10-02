@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useWide } from './useWide';
 
 type Props = {
@@ -31,7 +32,8 @@ export function Panel({ anchor, onClose, children, label }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  return (
+  // Rendered on <body>: inside the zoomed Map a fixed panel would move and scale with the map.
+  return createPortal(
     <div className={popover ? 'backdrop clear' : 'backdrop'} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
         ref={ref}
@@ -42,7 +44,8 @@ export function Panel({ anchor, onClose, children, label }: Props) {
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

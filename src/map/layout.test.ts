@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { layout, MIN_OPEN_SCALE, openingView, zoomAt, type Box, type Shape } from './layout';
+import { layout, MIN_OPEN_SCALE, openingView, revealBox, zoomAt, type Box, type Shape } from './layout';
 
 /** Tiny tree builder: key + kids. */
 const n = (key: string, ...kids: Shape[]): Shape => ({ key, kids });
@@ -82,5 +82,32 @@ describe('opening zoom', () => {
     const v = zoomAt({ tx: 0, ty: 0, s: 1 }, 2, 100, 50);
     expect(v).toEqual({ s: 2, tx: -100, ty: -50 });
     expect(zoomAt({ tx: 0, ty: 0, s: 0.2 }, 0.1, 0, 0).s).toBe(0.15);
+  });
+});
+
+describe('revealBox (editing on the box, phone keyboard)', () => {
+  const vp = { w: 400, h: 300 };
+  const box = { key: 'b', x: 1000, y: 500, w: 200, h: 60, depth: 3 };
+  it('leaves the view alone when the box is already in view', () => {
+    const v = { tx: -900, ty: -450, s: 1 };
+    expect(revealBox(v, box, vp)).toBe(v);
+  });
+  it('pans the least needed to bring the box in, with a margin', () => {
+    const v = revealBox({ tx: 0, ty: 0, s: 1 }, box, vp);
+    expect(v.s).toBe(1);
+    expect(v.tx + box.x + box.w).toBe(vp.w - 16); // right edge just inside
+    expect(v.ty + box.y + box.h).toBe(vp.h - 16);
+  });
+  it('zooms a tiny view up to readable size first', () => {
+    const v = revealBox({ tx: 0, ty: 0, s: 0.3 }, box, vp);
+    expect(v.s).toBe(1);
+    expect(v.tx + box.x).toBeGreaterThanOrEqual(16);
+    expect(v.tx + box.x + box.w).toBeLessThanOrEqual(vp.w - 16);
+  });
+  it('shows the top-left of a box bigger than the screen', () => {
+    const big = { ...box, w: 600, h: 400 };
+    const v = revealBox({ tx: 0, ty: 0, s: 1 }, big, vp);
+    expect(v.tx + big.x).toBe(16);
+    expect(v.ty + big.y).toBe(16);
   });
 });
