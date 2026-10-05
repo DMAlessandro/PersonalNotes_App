@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
 import { addItem, addProject, setFolded, setProjectFolded } from '../domain/edits';
 import { newId } from '../domain/ids';
 import { edgePath, layout, openingView, revealBox, zoomAt, type Box, type Direction, type Size, type View } from '../map/layout';
@@ -7,6 +7,7 @@ import { useStore } from '../store/store';
 import { useUi } from '../store/ui';
 import { DueChip, Linkified } from './format';
 import { TextEditor } from './TextEditor';
+import { addTopTask, lastPointerWasMouse, selectOnMouse, targetProject } from './shortcuts';
 import { useLongPress } from './useLongPress';
 import { useItemEditing, useItemMenu, useProjectMenu, useProjectRename } from './itemActions';
 
@@ -149,13 +150,21 @@ function ItemBox({ node, box }: { node: MapNode; box: Box | undefined }) {
   const edit = useItemEditing(pid, item);
   const menu = useItemMenu(doc, item);
   const longPress = useLongPress((el) => menu.open(el.getBoundingClientRect()));
+  const selected = useUi((s) => s.selected?.id === item.id);
   return (
-    <div className={`${boxClass(node)}${menu.isOpen ? ' sel' : ''}`} style={place(box)} data-key={node.key} {...(edit.isEditing ? {} : longPress)}>
+    <div
+      className={`${boxClass(node)}${menu.isOpen ? ' sel' : ''}${selected ? ' selected' : ''}`}
+      style={place(box)}
+      data-key={node.key}
+      data-select
+      onPointerDownCapture={selectOnMouse(pid, item.id)}
+      {...(edit.isEditing ? {} : longPress)}
+    >
       <BoxBody
         node={node}
         editor={
           edit.isEditing && (
-            <TextEditor initial={item.text} placeholder={item.type === 'task' ? 'Task' : 'Note'} onDone={edit.finishEdit} onCancel={edit.cancelEdit} onTab={edit.tabEdit} />
+            <TextEditor initial={item.text} placeholder={item.type === 'task' ? 'Task' : 'Note'} onDone={edit.finishEdit} onCancel={edit.cancelEdit} onTab={edit.tabEdit} onCtrlEnter={edit.ctrlEnterEdit} />
           )
         }
         h={{
@@ -184,7 +193,13 @@ function ProjectBox({ node, box }: { node: MapNode; box: Box | undefined }) {
   const menu = useProjectMenu(pid, [{ label: 'Add Task', onSelect: addTask }]);
   const longPress = useLongPress((el) => menu.open(el.getBoundingClientRect()));
   return (
-    <div className={boxClass(node)} style={place(box)} data-key={node.key} {...(rename.isEditing ? {} : longPress)}>
+    <div
+      className={boxClass(node)}
+      style={place(box)}
+      data-key={node.key}
+      onPointerDownCapture={(e) => e.pointerType === 'mouse' && useUi.getState().setLastProject(pid)}
+      {...(rename.isEditing ? {} : longPress)}
+    >
       <BoxBody
         node={node}
         editor={rename.isEditing && <TextEditor initial={node.label} placeholder="Project name" onDone={rename.finishEdit} onCancel={rename.cancelEdit} />}
@@ -378,6 +393,35 @@ export function MapView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Laptop (ticket 13): double-click on the background adds a top-level Task to the Project whose branch is
+  // there (left → right: the band of rows it spans; top-down: its columns), else to the Project last used.
+  const projectAt = (wx: number, wy: number): string | null => {
+    const bands = new Map<string, [number, number]>();
+    for (const n of nodes) {
+      const b = byKey[n.key];
+      if (!n.pid || !b) continue;
+      const [lo, hi] = dir === 'lr' ? [b.y, b.y + b.h] : [b.x, b.x + b.w];
+      const cur = bands.get(n.pid);
+      bands.set(n.pid, cur ? [Math.min(cur[0], lo), Math.max(cur[1], hi)] : [lo, hi]);
+    }
+    const at = dir === 'lr' ? wy : wx;
+    let best: string | null = null;
+    let dist = 30; // a double-click in the gap just beside a branch still counts for it
+    for (const [pid, [lo, hi]] of bands) {
+      const d = at < lo ? lo - at : at > hi ? at - hi : 0;
+      if (d < dist) [best, dist] = [pid, d];
+    }
+    return best;
+  };
+  const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (!lastPointerWasMouse()) return;
+    if ((e.target as HTMLElement).closest('.mbox, .map-tools, [role=dialog]')) return;
+    const r = vpRef.current!.getBoundingClientRect();
+    const v = viewRef.current;
+    const pid = projectAt((e.clientX - r.left - v.tx) / v.s, (e.clientY - r.top - v.ty) / v.s) ?? targetProject(null);
+    if (pid) addTopTask(pid);
+  };
+
   // Editing on the box: keep it in view, also when the phone keyboard makes the map smaller.
   const revealed = useRef<string | null>(null);
   useLayoutEffect(() => {
@@ -425,6 +469,7 @@ export function MapView() {
         className="map-vp"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
+        onDoubleClick={onDoubleClick}
         onPointerUp={(e) => endPointer(e.pointerId)}
         onPointerCancel={(e) => endPointer(e.pointerId)}
       >

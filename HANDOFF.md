@@ -42,6 +42,7 @@ A personal notes/tasks PWA for one user (a researcher) on a Windows laptop and a
 - **Slice 9 (Polish) built 2026-10-02:** rate-limit message says when to retry (retry-after or x-ratelimit-reset, test-first); token/permission/repo errors get a **Settings** button on the toast; **Offline** chip in the top bar, automatic Pulls skipped offline and run quietly on reconnect; Esc closes Change log, Settings, Search, Workspaces (not while a menu/confirmation is on top); `Panel` moves focus in (next frame: a popover is hidden until placed) and back out only if nothing else took focus (menu → Edit keeps the field); visible `:focus-visible` ring; empty-Map hint. Dark mode already follows the system. Playwright `slice9.mjs` plus every earlier script rerun clean.
 - **User confirmed slice 9 and the pinch fix (2026-10-02, "all works great").** Spec audit afterwards (sections 3-6 against the code) found one gap, fixed in 0.9.1: Push is disabled while offline. Build-time decisions are now recorded in spec §12.
 - The user did the slice-1 phone checkpoint: installed and offline both work.
+- **0.10.0 (2026-10-05): laptop shortcuts (ticket 13, spec §13)**, the first item from the week of use. `src/ui/shortcuts.ts` (selection, Ctrl+Enter, double-click on empty space), `addItem(..., { after })` for "directly below" (test-first). Playwright: `scratchpad/shortcuts.mjs` of session 576f7786 (16 checks), and the slice 3/6/7/8/9 scripts rerun clean. **Not yet checked by the user.**
 
 ## 3. Active Decisions & Constraints
 
@@ -79,7 +80,7 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 
 ## 5. Exact Next Step
 
-1. **The user is using the app for a week (from 2026-10-02) and will come back with a list of fixes.** Work through that list; record each new rule in §3 and in spec §12.
+1. **The user tries the laptop shortcuts (0.10.0)** once deployed, and goes on with the rest of their list of fixes from the week of use. Record each new rule in §3 and in spec §13.
 2. Don't propose out-of-scope features (reminders, deadline overview, map links, sharing, exports); the user declined them for now.
 
 Tooling note: long heredocs in the Bash tool sometimes fail with "unexpected EOF"; use the Write tool for new files.

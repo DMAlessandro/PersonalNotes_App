@@ -9,10 +9,12 @@ type Props = {
   onCancel: () => void;
   /** Laptop: Tab / Shift+Tab while editing (spec §4.4). Gets the current text so it can be saved first. */
   onTab?: (text: string, shift: boolean) => void;
+  /** Laptop: Ctrl+Enter saves and adds a sibling below (ticket 13). Without it, Ctrl+Enter acts like Enter. */
+  onCtrlEnter?: (text: string) => void;
 };
 
-/** Edit text in place: wrapping multi-line field; Enter saves, Shift+Enter is a new line, Esc cancels. */
-export function TextEditor({ initial, placeholder, className, onDone, onCancel, onTab }: Props) {
+/** Edit text in place: wrapping multi-line field; Enter saves, Shift+Enter is a new line, Ctrl+Enter saves and adds below, Esc cancels. */
+export function TextEditor({ initial, placeholder, className, onDone, onCancel, onTab, onCtrlEnter }: Props) {
   const [text, setText] = useState(initial);
   const ref = useRef<HTMLTextAreaElement>(null);
   const finished = useRef(false);
@@ -36,7 +38,10 @@ export function TextEditor({ initial, placeholder, className, onDone, onCancel, 
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && onCtrlEnter && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      finish(() => onCtrlEnter(text));
+    } else if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       finish(() => onDone(text));
     } else if (e.key === 'Escape') {

@@ -521,3 +521,13 @@ New in this spec:
 - **Map:** words are never split, also at hyphens (each run of non-space characters is kept on one line). "+ Project" on the Workspace pill and "Add Task" in a Project's ⋯ make an empty box ready to type into; left empty, it is discarded (not logged). The box being edited is kept in view, also when the phone keyboard opens. A finger that joins a pinch never triggers a long-press.
 - **Messages:** a refused token, missing permission or missing repo offers a **Settings** button; a rate limit says when to try again. An **Offline** label shows in the top bar; Push is disabled offline and automatic Pulls wait for the connection.
 - **App update:** "A new version is ready — Reload" (built in slice 5 after the user saw a stale version).
+
+## 13. After a week of use (2026-10-05)
+
+- **Laptop shortcuts** (ticket 13; built in 0.10.0), in the List view and the Map view:
+  - A mouse click on an Item selects it (outline). Esc or a click on empty space clears it. Touch screens have no selection.
+  - **Ctrl+Enter** (⌘+Enter on a Mac) while editing, or with an Item selected: save, then add a same-type sibling (Task → Task, Note → Note) **directly below it**, ready to type. With nothing selected: a new top-level Task in the open Project (List) or the Project last used (Map).
+  - **Double-click on empty space** (mouse only): a new top-level Task, ready to type. List: in the open Project. Map: in the Project whose branch is at that height (left → right) or column (top-down), within 30px; otherwise the Project last used.
+  - While editing: Enter saves, Shift+Enter is a line break, Esc cancels (a new empty Item is discarded). Ctrl+Enter on a Project name acts like Enter.
+  - The keys do nothing while the Change log, Settings, Search, Workspaces, the resolver or any panel is open.
+

@@ -9,6 +9,7 @@ import { groupOf, ItemNode } from './ItemNode';
 import { Panel } from './Panel';
 import { TextEditor } from './TextEditor';
 import { useDrag } from './useDrag';
+import { addTopTask, lastPointerWasMouse } from './shortcuts';
 
 /** The Cards List view of one Project (spec §5.2). */
 export function ProjectView({ pid, onBack, onOpenLog }: { pid: string; onBack?: () => void; onOpenLog: () => void }) {
@@ -24,7 +25,15 @@ export function ProjectView({ pid, onBack, onOpenLog }: { pid: string; onBack?: 
   const renaming = editing === `project:${pid}`;
 
   return (
-    <section className="project-view">
+    <section
+      className="project-view"
+      onDoubleClick={(e) => {
+        // Laptop (ticket 13): double-click on empty space, outside any Item, adds a top-level Task.
+        if (!lastPointerWasMouse()) return;
+        if ((e.target as HTMLElement).closest('.card, .pv-header, .fabs, button, input, textarea, a, [role=dialog]')) return;
+        addTopTask(pid);
+      }}
+    >
       <header className="pv-header">
         {onBack && (
           <button className="icon-btn" aria-label="Back to Projects" onClick={onBack}>
@@ -55,7 +64,7 @@ export function ProjectView({ pid, onBack, onOpenLog }: { pid: string; onBack?: 
       {top.length === 0 ? (
         <div className="empty">
           <p className="empty-title">No Tasks yet</p>
-          <p className="empty-hint">Tap + to add the first Task.</p>
+          <p className="empty-hint">Tap + to add the first Task (on a laptop: double-click here or press Ctrl+Enter).</p>
         </div>
       ) : (
         <div className="cards">

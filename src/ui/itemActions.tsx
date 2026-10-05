@@ -17,6 +17,7 @@ import { Menu, Panel, type MenuEntry } from './Panel';
 import { DueSheet } from './DueSheet';
 import { Confirm } from './Confirm';
 import { ProjectWorkspaces } from './Workspaces';
+import { addSiblingBelow } from './shortcuts';
 
 export function countDescendants(doc: ProjectDoc, id: string): number {
   return children(doc, id).reduce((n, c) => n + 1 + countDescendants(doc, c.id), 0);
@@ -56,7 +57,13 @@ export function useItemEditing(pid: string, item: Item) {
     startEditing(`item:${item.id}`);
   };
 
-  return { isEditing, startEdit: () => startEditing(`item:${item.id}`), finishEdit, cancelEdit, tabEdit };
+  /** Laptop: Ctrl+Enter saves, then adds a same-type sibling directly below (ticket 13). */
+  const ctrlEnterEdit = (text: string) => {
+    finishEdit(text);
+    addSiblingBelow(pid, item.id); // does nothing if a new, empty Item was just discarded
+  };
+
+  return { isEditing, startEdit: () => startEditing(`item:${item.id}`), finishEdit, cancelEdit, tabEdit, ctrlEnterEdit };
 }
 
 /** The ⋯ menu of an Item and the panels it opens (due date, Move to Project, Delete confirmation). */

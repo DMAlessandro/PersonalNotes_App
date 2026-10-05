@@ -16,6 +16,12 @@ type Ui = {
   /** Current Workspace; null = All Projects. Not remembered: the app always opens on All Projects (ticket 02). */
   workspace: string | null;
   setWorkspace: (wid: string | null) => void;
+  /** Laptop: the Item last clicked (outlined); Ctrl+Enter adds a sibling below it (ticket 13). */
+  selected: { pid: string; id: string } | null;
+  setSelected: (sel: { pid: string; id: string } | null) => void;
+  /** The Project last opened, clicked or added to: where Ctrl+Enter / double-click add a Task on the Map. */
+  lastProject: string | null;
+  setLastProject: (pid: string) => void;
   /** Item to scroll to and highlight briefly after a search jump. */
   flash: string | null;
   setFlash: (id: string | null) => void;
@@ -34,9 +40,14 @@ export const useUi = create<Ui>((set) => ({
   setLog: (log) => set({ log }),
   workspace: null,
   setWorkspace: (workspace) => set({ workspace }),
+  selected: null,
+  setSelected: (selected) => set(selected ? { selected, lastProject: selected.pid } : { selected }),
+  lastProject: null,
+  setLastProject: (lastProject) => set({ lastProject }),
   flash: null,
   setFlash: (flash) => set({ flash }),
-  setOpenProject: (openProject) => set({ openProject, editing: null }),
+  setOpenProject: (openProject) =>
+    set((s) => ({ openProject, editing: null, selected: null, lastProject: openProject ?? s.lastProject })),
   startEditing: (editing, freshId) =>
     set((s) => ({ editing, fresh: freshId ? new Set([...s.fresh, freshId]) : s.fresh })),
   stopEditing: (freshId) =>

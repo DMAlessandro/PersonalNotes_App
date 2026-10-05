@@ -52,6 +52,35 @@ describe('adding Items', () => {
     expect(() => addItem(base, 'p', { id: 'x', type: 'note', text: '', parent: 't', due: '2026-10-09' }, NOW)).toThrow();
   });
 
+  describe('directly after a sibling (Ctrl+Enter, ticket 13)', () => {
+    const three = data([doc('p', [
+      item('a', { order: 'a' }), item('b', { order: 'b' }), item('c', { order: 'c' }),
+      item('n1', { type: 'note', parent: 'a', order: 'a' }), item('n2', { type: 'note', parent: 'a', order: 'b' }),
+    ])]);
+
+    it('places a Task right below the given one, not at the end', () => {
+      const d = addItem(three, 'p', { id: 'x', type: 'task', text: '', parent: null, after: 'a' }, NOW);
+      expect(ids(children(d.docs.p, null))).toEqual(['a', 'x', 'b', 'c']);
+      expect(problems(d.docs.p)).toEqual([]);
+    });
+
+    it('after the last sibling, goes to the end', () => {
+      const d = addItem(three, 'p', { id: 'x', type: 'task', text: '', parent: null, after: 'c' }, NOW);
+      expect(ids(children(d.docs.p, null))).toEqual(['a', 'b', 'c', 'x']);
+    });
+
+    it('works for a Note among Notes under a Task, and again right below the new one', () => {
+      let d = addItem(three, 'p', { id: 'x', type: 'note', text: '', parent: 'a', after: 'n1' }, NOW);
+      d = addItem(d, 'p', { id: 'y', type: 'note', text: '', parent: 'a', after: 'x' }, NOW);
+      expect(ids(children(d.docs.p, 'a'))).toEqual(['n1', 'x', 'y', 'n2']);
+    });
+
+    it('refuses an `after` that is not a sibling at that level', () => {
+      expect(() => addItem(three, 'p', { id: 'x', type: 'task', text: '', parent: null, after: 'n1' }, NOW)).toThrow();
+      expect(() => addItem(three, 'p', { id: 'x', type: 'task', text: '', parent: null, after: 'nope' }, NOW)).toThrow();
+    });
+  });
+
   it('discards a new empty Item (not a Delete, nothing is logged)', () => {
     const d = addItem(base, 'p', { id: 'x', type: 'task', text: '', parent: 't' }, NOW);
     expect(discardItem(d, 'p', 'x').docs.p.items.x).toBeUndefined();

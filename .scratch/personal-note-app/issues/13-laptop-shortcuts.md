@@ -24,3 +24,7 @@ Applies to **both the List view (Cards) and the Map view** on laptop.
   - with **nothing selected and nothing being edited** → a new top-level **Task** in the current Project (Map: the Project last used).
 - **While editing:** **Enter** = save and stop editing; **Shift+Enter** = line break inside the Item; **Ctrl+Enter** = save and add a sibling (above); **Esc** = cancel (a new, still-empty Item is discarded).
 - A sibling "directly below" sits right after the current Item in the manual order. Deadline ordering still applies if it gets a due date.
+
+## Comments
+
+- 2026-10-05: built in app 0.10.0 (`src/ui/shortcuts.ts`; `addItem` takes `after` for "directly below", test-first). Browser-tested with Playwright on Edge (16 checks: List and Map, Notes, selection, Esc, Shift+Enter). The slice 3, 6, 7, 8 and 9 scripts rerun clean.

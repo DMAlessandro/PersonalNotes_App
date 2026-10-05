@@ -14,6 +14,7 @@ import { useWide } from './useWide';
 import { useOnline } from './useOnline';
 import { Search } from './Search';
 import { MapView } from './MapView';
+import { useLaptopShortcuts } from './shortcuts';
 import { Workspaces } from './Workspaces';
 import { reveal } from '../domain/edits';
 import type { SearchResult } from '../domain/search';
@@ -133,6 +134,7 @@ export function App() {
   };
 
   const current = openProject && exists ? openProject : null;
+  useLaptopShortcuts(view === 'list' ? current : null, !!log || settingsOpen || workspacesOpen || searchOpen || sync.resolverOpen);
 
   return (
     <div className="app">

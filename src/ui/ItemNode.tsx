@@ -10,6 +10,7 @@ import { TextEditor } from './TextEditor';
 import { useDrag } from './useDrag';
 import { useLongPress } from './useLongPress';
 import { countDescendants, useItemEditing, useItemMenu } from './itemActions';
+import { selectOnMouse } from './shortcuts';
 
 export const groupOf = (pid: string, parent: string | null) => `items:${pid}:${parent ?? 'root'}`;
 
@@ -24,7 +25,8 @@ type Props = {
 export function ItemNode({ doc, item, depth, dragHandle }: Props) {
   const pid = doc.project.id;
   const apply = useStore((s) => s.apply);
-  const { isEditing, startEdit, finishEdit, cancelEdit, tabEdit } = useItemEditing(pid, item);
+  const { isEditing, startEdit, finishEdit, cancelEdit, tabEdit, ctrlEnterEdit } = useItemEditing(pid, item);
+  const selected = useUi((s) => s.selected?.id === item.id);
   const menu = useItemMenu(doc, item);
   const flash = useUi((s) => s.flash === item.id);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,13 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
   const under = countDescendants(doc, item.id);
 
   const row = (
-    <div ref={rowRef} className={flash ? 'row flash' : 'row'} {...(isEditing ? {} : longPress)}>
+    <div
+      ref={rowRef}
+      className={`row${flash ? ' flash' : ''}${selected ? ' selected' : ''}`}
+      data-select
+      onPointerDownCapture={selectOnMouse(pid, item.id)}
+      {...(isEditing ? {} : longPress)}
+    >
       <button className="handle" aria-label="Drag to reorder" onPointerDown={dragHandle(item.id)}>
         ⠿
       </button>
@@ -88,6 +96,7 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
             onDone={finishEdit}
             onCancel={cancelEdit}
             onTab={tabEdit}
+            onCtrlEnter={ctrlEnterEdit}
           />
         ) : (
           <div className="text" onDoubleClick={startEdit}>

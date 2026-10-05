@@ -122,7 +122,8 @@ export function moveProject(data: AppData, pid: string, index: number, now: Time
 
 // ---- Items: adding and content ----------------------------------------------
 
-export type NewItem = { id: string; type: ItemType; text: string; parent: string | null; due?: DateOnly | null };
+/** `after`: a sibling at the same level to place the new Item directly below (Ctrl+Enter, ticket 13); else at the end. */
+export type NewItem = { id: string; type: ItemType; text: string; parent: string | null; due?: DateOnly | null; after?: string };
 
 export function addItem(data: AppData, pid: string, n: NewItem, now: Timestamp): AppData {
   return withDoc(data, pid, (doc) => {
@@ -132,10 +133,17 @@ export function addItem(data: AppData, pid: string, n: NewItem, now: Timestamp):
     if (n.type === 'note' && !parent) throw new Error('A Note must sit under a Task');
     if (n.type === 'note' && n.due) throw new Error('Only Tasks have a due date');
     const siblings = Object.values(doc.items).filter((i) => i.parent === n.parent);
+    let order: string;
+    if (n.after) {
+      const prev = siblings.find((s) => s.id === n.after);
+      if (!prev) throw new Error('`after` is not a sibling at this level');
+      const next = siblings.map((s) => s.order).filter((o) => o > prev.order).sort()[0] ?? null;
+      order = keyBetween(prev.order, next);
+    } else order = keyAtEnd(siblings.map((s) => s.order));
     const it: Item = {
       id: n.id, type: n.type, text: n.text, due: n.due ?? null,
       crossed: false, crossedAt: null, crossSnap: null,
-      parent: n.parent, order: keyAtEnd(siblings.map((s) => s.order)), bottomed: false, folded: false,
+      parent: n.parent, order, bottomed: false, folded: false,
       created: now, edited: now, contentAt: now, positionAt: now,
     };
     return { ...doc, items: { ...doc.items, [it.id]: it } };
