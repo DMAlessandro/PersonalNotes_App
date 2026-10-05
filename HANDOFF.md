@@ -51,6 +51,7 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 - **Delete is offered only on an already crossed-out Item.** Cross out, then Delete. Everything goes to the weekly Change log and can be restored.
 - **Notes live only under a Task.** Only Tasks have children.
 - **Map boxes show their full text and never split a word.** They shrink-wrap the text up to ~210px and grow wider rather than break a word. Text is edited directly on the box, also on the phone.
+- **Laptop shortcuts (ticket 13), in both views:** double-click empty space = new Task; Ctrl+Enter = same-type sibling directly below the edited/selected Item (or a new top-level Task if nothing is selected); Enter saves, Shift+Enter = line break.
 - **Saving is local and automatic; GitHub is updated only by a manual Push.** One Push = one atomic commit (Git Data API). The app pulls on open/foreground and before each Push. Merging is per Item, three-way.
 - **Two repos (user):** public `PersonalNotes_App` (code + these planning files, served by GitHub Pages) and private `PersonalNotes` (notes data only). The token is a fine-grained PAT limited to `PersonalNotes`, stored per device.
 - **Reversals** (the earlier answer is wrong now):

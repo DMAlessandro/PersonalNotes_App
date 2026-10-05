@@ -54,6 +54,9 @@ _Avoid_: Task list, thread view
 An automatically laid-out tree of one Workspace (Projects → their Item trees): drawn left to right by default on every device, with branches you can expand and collapse. Editing in the Map view changes the same Items shown in the List view.
 _Avoid_: Mind map, canvas
 
+**Selected Item**:
+The Item last clicked on the laptop, shown with an outline. Keyboard shortcuts act on it. Clicking empty space or pressing Esc clears it.
+
 ## Sync
 
 **Save**:
