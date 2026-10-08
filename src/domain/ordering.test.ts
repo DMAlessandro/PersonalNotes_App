@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { children, progress, projectDeadline, projectSortDate, sortedProjectIds, openTaskCount, taskOutline } from './ordering';
+import { children, progress, splitCrossed, projectDeadline, projectSortDate, sortedProjectIds, openTaskCount, taskOutline } from './ordering';
 import { data, doc, item } from './testkit';
 
 const ids = (xs: { id: string }[]) => xs.map((x) => x.id);
@@ -20,22 +20,24 @@ describe('sibling order (spec §4.1)', () => {
     expect(ids(children(d, null))).toEqual(['a', 'b']);
   });
 
-  it('keeps a crossed-out dated Item in the dated group: crossing out never moves anything', () => {
+  it('puts crossed-out Items last, even when dated, in their manual order (ticket 14)', () => {
     const d = doc('p', [
       item('plain', { order: 'a' }),
-      item('done', { due: '2026-10-01', crossed: true, order: 'z' }),
-      item('open', { due: '2026-10-09', order: 'b' }),
+      item('done-late', { order: 'c', crossed: true }),
+      item('done', { due: '2026-10-01', crossed: true, order: 'b' }),
+      item('open', { due: '2026-10-09', order: 'z' }),
     ]);
-    expect(ids(children(d, null))).toEqual(['done', 'open', 'plain']);
+    expect(ids(children(d, null))).toEqual(['open', 'plain', 'done', 'done-late']);
   });
 
-  it('puts Items sent to the bottom last, even when dated', () => {
+  it('splits a level into open and crossed-out Items', () => {
     const d = doc('p', [
-      item('sent', { due: '2026-10-01', crossed: true, bottomed: true, order: 'a' }),
-      item('plain', { order: 'b' }),
-      item('dated', { due: '2026-11-01', order: 'c' }),
+      item('x', { order: 'a', crossed: true }),
+      item('y', { order: 'b' }),
+      item('z', { order: 'c', due: '2026-10-01' }),
     ]);
-    expect(ids(children(d, null))).toEqual(['dated', 'plain', 'sent']);
+    const s = splitCrossed(children(d, null));
+    expect([ids(s.open), ids(s.crossed)]).toEqual([['z', 'y'], ['x']]);
   });
 
   it('ignores the due date of Notes (only Tasks have one)', () => {
@@ -82,13 +84,13 @@ describe('Project deadline and sort date (spec §2.2)', () => {
 });
 
 describe('Project order', () => {
-  it('dated Projects first by sort date, then manual order, then Projects sent to the bottom', () => {
+  it('dated Projects first by sort date, then manual order, then crossed-out Projects', () => {
     const app = data(
       [
         doc('manualB'),
         doc('dated', [item('x', { due: '2026-10-10' })]),
         doc('manualA'),
-        doc({ ...doc('sent').project, crossed: true, bottomed: true }, [item('y', { due: '2026-10-01' })]),
+        doc({ ...doc('sent').project, crossed: true }, [item('y', { due: '2026-10-01' })]),
         doc('soon', [item('z', { due: '2026-10-04', crossed: true })]),
       ],
       { manualB: 'b', dated: 'c', manualA: 'a', sent: 'A', soon: 'z' },

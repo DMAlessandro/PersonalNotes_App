@@ -7,7 +7,7 @@ import {
   addItem, canIndent, canMoveToProject, canOutdent, discardItem, discardProject, editText, indent, makeTask, moveToProject, outdent,
   renameProject, setFolded,
 } from '../domain/edits';
-import { crossOut, crossProject, deleteItem, deleteProject, sendProjectToBottom, sendToBottom, uncross, uncrossProject } from '../domain/lifecycle';
+import { crossOut, crossProject, deleteItem, deleteProject, uncross, uncrossProject } from '../domain/lifecycle';
 import { shownProjectIds } from '../domain/workspaces';
 import { newId } from '../domain/ids';
 import { useStore } from '../store/store';
@@ -100,7 +100,6 @@ export function useItemMenu(doc: ProjectDoc, item: Item) {
     canOutdent(doc, item.id) && { label: 'Outdent', onSelect: () => apply((d, now) => outdent(d, pid, item.id, now)) },
     { label: item.crossed ? 'Un-cross' : 'Cross out', onSelect: toggleCross },
     canMoveToProject(doc, item.id) && { label: 'Move to Project…', onSelect: () => setMoving(true) },
-    item.crossed && !item.bottomed && { label: '↓ Move to bottom', onSelect: () => apply((d, now) => sendToBottom(d, pid, item.id, now)) },
     item.crossed && { label: 'Delete…', danger: true, onSelect: () => setConfirmDelete(true) },
   ];
 
@@ -213,7 +212,6 @@ export function useProjectMenu(pid: string, extra: MenuEntry[] = []) {
       label: p.crossed ? 'Un-cross' : 'Cross out',
       onSelect: () => apply((d, now) => (p.crossed ? uncrossProject(d, pid, now) : crossProject(d, pid, now, deviceName()))),
     },
-    p.crossed && !p.bottomed && { label: '↓ Move to bottom', onSelect: () => apply((d, now) => sendProjectToBottom(d, pid, now)) },
     p.crossed && { label: 'Delete…', danger: true, onSelect: () => setConfirmDelete(true) },
   ];
   const n = Object.keys(doc.items).length;

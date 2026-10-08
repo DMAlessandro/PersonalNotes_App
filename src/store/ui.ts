@@ -26,6 +26,10 @@ type Ui = {
   flash: string | null;
   setFlash: (id: string | null) => void;
   setOpenProject: (id: string | null) => void;
+  /** Crossed-out sections shown (ticket 14): `projects` or `items:<pid>:<parent|root>`. Item ones close on leaving the Project. */
+  crossedOpen: Set<string>;
+  toggleCrossed: (key: string) => void;
+  showCrossed: (keys: string[]) => void;
   startEditing: (key: string | null, fresh?: string) => void;
   stopEditing: (fresh?: string) => void;
   rememberSubtaskParent: (pid: string, parent: string) => void;
@@ -47,7 +51,18 @@ export const useUi = create<Ui>((set) => ({
   flash: null,
   setFlash: (flash) => set({ flash }),
   setOpenProject: (openProject) =>
-    set((s) => ({ openProject, editing: null, selected: null, lastProject: openProject ?? s.lastProject })),
+    set((s) => ({
+      openProject, editing: null, selected: null, lastProject: openProject ?? s.lastProject,
+      crossedOpen: openProject === s.openProject ? s.crossedOpen : new Set([...s.crossedOpen].filter((k) => k === 'projects')),
+    })),
+  crossedOpen: new Set(),
+  toggleCrossed: (key) =>
+    set((s) => {
+      const crossedOpen = new Set(s.crossedOpen);
+      if (!crossedOpen.delete(key)) crossedOpen.add(key);
+      return { crossedOpen };
+    }),
+  showCrossed: (keys) => set((s) => ({ crossedOpen: new Set([...s.crossedOpen, ...keys]) })),
   startEditing: (editing, freshId) =>
     set((s) => ({ editing, fresh: freshId ? new Set([...s.fresh, freshId]) : s.fresh })),
   stopEditing: (freshId) =>

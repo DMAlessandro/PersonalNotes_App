@@ -24,12 +24,13 @@ export type MapNode = {
 
 export function mapTree(data: AppData, wid: string | null): MapNode {
   const label = (wid && data.index.workspaces[wid]?.name) || 'All Projects';
-  const projects = shownProjectIds(data, wid).map((pid): MapNode => {
+  // Crossed-out Items and Projects are not drawn (ticket 14); progress still counts them.
+  const projects = shownProjectIds(data, wid).filter((pid) => !data.docs[pid].project.crossed).map((pid): MapNode => {
     const doc = data.docs[pid];
-    const count = (parent: string | null): number =>
-      children(doc, parent).reduce((s, c) => s + 1 + count(c.id), 0);
+    const open = (parent: string | null) => children(doc, parent).filter((c) => !c.crossed);
+    const count = (parent: string | null): number => open(parent).reduce((s, c) => s + 1 + count(c.id), 0);
     const itemNode = (it: Item): MapNode => {
-      const kids = children(doc, it.id);
+      const kids = open(it.id);
       return {
         key: `item:${it.id}`, kind: 'item', pid, item: it, label: it.text,
         kids: it.folded ? [] : kids.map(itemNode),
@@ -40,7 +41,7 @@ export function mapTree(data: AppData, wid: string | null): MapNode {
         crossed: it.crossed,
       };
     };
-    const top = children(doc, null);
+    const top = open(null);
     return {
       key: `project:${pid}`, kind: 'project', pid, item: null, label: doc.project.title,
       kids: doc.project.folded ? [] : top.map(itemNode),

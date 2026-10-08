@@ -40,4 +40,21 @@ describe('mapTree', () => {
     expect(t.label).toBe('Research');
     expect(t.kids.map((k) => k.key)).toEqual(['project:r']);
   });
+
+  it('leaves out crossed-out Items and Projects (ticket 14); progress still counts them', () => {
+    const t = mapTree(
+      data(
+        [
+          doc('p', [item('a'), item('a1', { parent: 'a' }), item('a2', { parent: 'a', crossed: true }), item('done', { crossed: true })]),
+          doc(project('gone', { crossed: true })),
+          doc(project('f', { folded: true }), [item('x'), item('y', { crossed: true })]),
+        ],
+        { p: 'a', gone: 'b', f: 'c' },
+      ),
+      null,
+    );
+    expect(shape(t)).toEqual({ ws: [{ 'project:p': [{ 'item:a': ['item:a1'] }] }, 'project:f'] });
+    expect(t.kids[0].kids[0].progress).toEqual({ done: 1, total: 2 });
+    expect(t.kids[1]).toMatchObject({ hidden: 1, hasKids: true });
+  });
 });

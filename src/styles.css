@@ -230,15 +230,21 @@ main.single .project-list { border-right: 0; flex: 1; }
   .row, .p-row { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 }
 
-/* ---- Crossed out (spec 4.2): struck through and greyed, never moved --------- */
-.crossed > .row .text { text-decoration: line-through; color: var(--muted); }
+/* ---- Crossed out (spec 4.2, ticket 14): struck through, greyed, smaller, in a folded section at the bottom ---- */
+.crossed > .row .text { text-decoration: line-through; color: var(--muted); font-size: .88em; }
+.card.crossed > .row .text { font-size: 14px; font-weight: 500; }
+.crossed > .row .meta { font-size: .9em; }
 .card.crossed { opacity: .6; }
-.p-row.crossed .p-title { text-decoration: line-through; color: var(--muted); }
-.to-bottom {
-  flex: none; align-self: center; margin: 0 2px; padding: 3px 8px; white-space: nowrap;
-  font-size: 12px; color: var(--muted); background: var(--soft); border: 1px solid var(--line); border-radius: 999px;
+.p-row.crossed .p-title { text-decoration: line-through; color: var(--muted); font-size: .88em; font-weight: 500; }
+/* The divider: a faint line with an arrow; clicking it shows or hides what's below. */
+.crossed-line { list-style: none; grid-column: 1 / -1; }
+.crossed-divider {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 0; margin: 0;
+  border: 0; background: none; color: var(--guide); font-size: 11px; line-height: 1; cursor: pointer;
 }
-.to-bottom:hover { color: var(--text); }
+.crossed-divider::before, .crossed-divider::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
+.crossed-divider:hover { color: var(--muted); }
+@media (pointer: coarse) { .crossed-divider { padding: 12px 0; font-size: 13px; } }
 .form-body { margin: 0; color: var(--muted); font-size: 14px; }
 .danger-fill { background: var(--red); border-color: var(--red); color: #fff; }
 

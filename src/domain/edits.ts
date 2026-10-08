@@ -53,7 +53,7 @@ function dropKey(list: Placed[], index: number, group: number, allKeys = list.ma
   return keyAfter(prev?.order ?? null, allKeys);
 }
 
-const itemGroup = (it: Item) => (it.bottomed ? 2 : it.type === 'task' && it.due ? 0 : 1);
+const itemGroup = (it: Item) => (it.crossed ? 2 : it.type === 'task' && it.due ? 0 : 1);
 
 // ---- Projects --------------------------------------------------------------
 
@@ -108,7 +108,7 @@ export function setProjectFolded(data: AppData, pid: string, folded: boolean, no
  * Projects. It lands just after its new upper neighbour in the one manual order.
  */
 export function moveProject(data: AppData, pid: string, index: number, now: Timestamp, shown?: string[]): AppData {
-  const group = (id: string) => (data.docs[id].project.bottomed ? 2 : projectSortDate(data.docs[id]) ? 0 : 1);
+  const group = (id: string) => (data.docs[id].project.crossed ? 2 : projectSortDate(data.docs[id]) ? 0 : 1);
   const list = (shown ?? sortedProjectIds(data))
     .filter((id) => id !== pid)
     .map((id) => ({ id, group: group(id), order: data.index.projectOrder[id]?.order ?? '' }));

@@ -530,4 +530,10 @@ New in this spec:
   - **Double-click on empty space** (mouse only): a new top-level Task, ready to type. List: in the open Project. Map: in the Project whose branch is at that height (left → right) or column (top-down), within 30px; otherwise the Project last used.
   - While editing: Enter saves, Shift+Enter is a line break, Esc cancels (a new empty Item is discarded). Ctrl+Enter on a Project name acts like Enter.
   - The keys do nothing while the Change log, Settings, Search, Workspaces, the resolver or any panel is open.
+- **Crossed-out section** (ticket 14, user 2026-10-08; built in 0.11.0). **Reverses §4.1/§4.2 "crossing out never moves anything"** and removes "↓ bottom":
+  - Sort groups per level are now: open dated (by date), open undated (manual order), crossed out (manual order, dated or not). Crossing out keeps the `order` key, so Un-cross puts the Item back where it was. Projects follow the same rule in the Projects list. Ticking a Task inside a Project still doesn't move the Project (sort date unchanged).
+  - In the List view each level ends with a pale grey line with a small ▾ (no label, low contrast) when it has crossed-out Items; clicking it shows them (▴) below it. Crossed-out text is smaller (cards 14px instead of 16px, rows 0.88em).
+  - Shown sections are screen state only: the Item ones close on opening another Project or reloading; the Projects-list one closes on reload. A search jump opens the sections on the way to its Item.
+  - The Map view leaves out crossed-out Items and Projects; progress (`2/5`) still counts them; "+N" counts only open Items.
+  - `bottomed` stays in the files for old data but is no longer set; "↓ bottom" and `sendToBottom`/`sendProjectToBottom` are gone.
 

@@ -1,8 +1,7 @@
 import { useEffect, useRef, type PointerEvent } from 'react';
 import type { Item, ProjectDoc } from '../domain/model';
-import { children, progress } from '../domain/ordering';
+import { children, progress, splitCrossed } from '../domain/ordering';
 import { moveItem, setFolded } from '../domain/edits';
-import { sendToBottom } from '../domain/lifecycle';
 import { useStore } from '../store/store';
 import { useUi } from '../store/ui';
 import { DueChip, Linkified, shortDate } from './format';
@@ -11,6 +10,7 @@ import { useDrag } from './useDrag';
 import { useLongPress } from './useLongPress';
 import { countDescendants, useItemEditing, useItemMenu } from './itemActions';
 import { selectOnMouse } from './shortcuts';
+import { CrossedSection } from './CrossedSection';
 
 export const groupOf = (pid: string, parent: string | null) => `items:${pid}:${parent ?? 'root'}`;
 
@@ -32,6 +32,7 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
   const rowRef = useRef<HTMLDivElement>(null);
   const longPress = useLongPress((el) => menu.open(el.getBoundingClientRect()));
   const kids = children(doc, item.id);
+  const split = splitCrossed(kids);
   const prog = progress(doc, item.id);
   const isTask = item.type === 'task';
   const childDrag = useDrag(
@@ -110,15 +111,6 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
           <span className="dates">{dates.join(' · ')}</span>
         </div>
       </div>
-      {item.crossed && !item.bottomed && (
-        <button
-          className="to-bottom"
-          title="Move to the bottom of this level"
-          onClick={() => apply((d, now) => sendToBottom(d, pid, item.id, now))}
-        >
-          ↓ bottom
-        </button>
-      )}
       <button className="more" aria-label="Item menu" onClick={(e) => menu.open(e.currentTarget.getBoundingClientRect())}>
         ⋯
       </button>
@@ -140,9 +132,14 @@ export function ItemNode({ doc, item, depth, dragHandle }: Props) {
       )}
       {!item.folded && kids.length > 0 && (
         <div className={depth >= 4 ? 'kids flat' : 'kids'}>
-          {kids.map((k) => (
+          {split.open.map((k) => (
             <ItemNode key={k.id} doc={doc} item={k} depth={depth + 1} dragHandle={childDrag} />
           ))}
+          <CrossedSection id={groupOf(pid, item.id)} count={split.crossed.length}>
+            {split.crossed.map((k) => (
+              <ItemNode key={k.id} doc={doc} item={k} depth={depth + 1} dragHandle={childDrag} />
+            ))}
+          </CrossedSection>
         </div>
       )}
       {menu.element}

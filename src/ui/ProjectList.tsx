@@ -3,7 +3,6 @@ import { addProject, moveProject } from '../domain/edits';
 import { newId } from '../domain/ids';
 import { openTaskCount, projectDeadline } from '../domain/ordering';
 import { shownProjectIds } from '../domain/workspaces';
-import { sendProjectToBottom } from '../domain/lifecycle';
 import { useStore } from '../store/store';
 import { useUi } from '../store/ui';
 import { DueChip } from './format';
@@ -11,6 +10,7 @@ import { TextEditor } from './TextEditor';
 import { useDrag } from './useDrag';
 import { useLongPress } from './useLongPress';
 import { useProjectMenu, useProjectRename } from './itemActions';
+import { CrossedSection } from './CrossedSection';
 
 /** Spec §5.1: the current Workspace's Projects in the one manual order, dated ones first. */
 export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
@@ -22,6 +22,8 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
     apply((d, now) => moveProject(d, id, index, now, shownProjectIds(d, useUi.getState().workspace))),
   );
   const ids = shownProjectIds(data, workspace);
+  const open = ids.filter((pid) => !data.docs[pid].project.crossed);
+  const crossed = ids.filter((pid) => data.docs[pid].project.crossed);
   const wsName = workspace ? data.index.workspaces[workspace]?.name : undefined;
 
   return (
@@ -35,9 +37,14 @@ export function ProjectList({ onOpen }: { onOpen: (pid: string) => void }) {
         </div>
       )}
       <ul>
-        {ids.map((pid) => (
+        {open.map((pid) => (
           <ProjectRow key={pid} pid={pid} onOpen={onOpen} dragHandle={drag} />
         ))}
+        <CrossedSection id="projects" as="li" count={crossed.length}>
+          {crossed.map((pid) => (
+            <ProjectRow key={pid} pid={pid} onOpen={onOpen} dragHandle={drag} />
+          ))}
+        </CrossedSection>
       </ul>
       {creating ? (
         <div className="p-new">
@@ -72,7 +79,6 @@ type RowProps = {
 
 function ProjectRow({ pid, onOpen, dragHandle }: RowProps) {
   const doc = useStore((s) => s.data.docs[pid]);
-  const apply = useStore((s) => s.apply);
   const selected = useUi((s) => s.openProject === pid);
   const rename = useProjectRename(pid);
   const menu = useProjectMenu(pid);
@@ -99,15 +105,6 @@ function ProjectRow({ pid, onOpen, dragHandle }: RowProps) {
             {deadline && <DueChip due={deadline} />}
             <span className="count">{open === 1 ? '1 open' : `${open} open`}</span>
           </span>
-        </button>
-      )}
-      {doc.project.crossed && !doc.project.bottomed && (
-        <button
-          className="to-bottom"
-          title="Move to the bottom of the list"
-          onClick={() => apply((d, now) => sendProjectToBottom(d, pid, now))}
-        >
-          ↓ bottom
         </button>
       )}
       <button className="more" aria-label="Project menu" onClick={(e) => menu.open(e.currentTarget.getBoundingClientRect())}>

@@ -1,11 +1,11 @@
 // Spec §4.1 and §2.2: how siblings and Projects are ordered, and the values derived from a Project.
 import type { AppData, DateOnly, Item, ProjectDoc } from './model';
 
-type Sortable = { due: DateOnly | null; bottomed: boolean; order: string };
+type Sortable = { due: DateOnly | null; crossed: boolean; order: string };
 
-/** Dated (not sent to bottom) by date, then the rest by manual order, then those sent to the bottom. */
+/** Open dated by date, then open undated by manual order, then crossed out by manual order (ticket 14). */
 function compare(a: Sortable, b: Sortable): number {
-  const group = (s: Sortable) => (s.bottomed ? 2 : s.due ? 0 : 1);
+  const group = (s: Sortable) => (s.crossed ? 2 : s.due ? 0 : 1);
   const g = group(a) - group(b);
   if (g) return g;
   if (group(a) === 0 && a.due !== b.due) return a.due! < b.due! ? -1 : 1;
@@ -22,6 +22,11 @@ export function children(doc: ProjectDoc, parent: string | null): Item[] {
 }
 
 /** Every Task of the Project in display order, with its depth (0 = top level). Notes are skipped. */
+/** A level in display order, split at the crossed-out section (ticket 14). */
+export function splitCrossed<T extends { crossed: boolean }>(xs: T[]): { open: T[]; crossed: T[] } {
+  return { open: xs.filter((x) => !x.crossed), crossed: xs.filter((x) => x.crossed) };
+}
+
 export function taskOutline(doc: ProjectDoc): { item: Item; depth: number }[] {
   const out: { item: Item; depth: number }[] = [];
   const walk = (parent: string | null, depth: number) => {
@@ -63,7 +68,7 @@ export function projectSortDate(doc: ProjectDoc): DateOnly | null {
 export function sortedProjectIds(data: AppData): string[] {
   const key = (id: string): Sortable => ({
     due: projectSortDate(data.docs[id]),
-    bottomed: data.docs[id].project.bottomed,
+    crossed: data.docs[id].project.crossed,
     order: data.index.projectOrder[id]?.order ?? '',
   });
   return Object.keys(data.docs).sort((a, b) => compare(key(a), key(b)));

@@ -1,4 +1,4 @@
-// Spec §4.2 / §4.3 / §5.5: Cross out, Un-cross, ↓ bottom, Delete and Restore, for Items and Projects.
+// Spec §4.2 / §4.3 / §5.5: Cross out, Un-cross, Delete and Restore, for Items and Projects.
 // Cross-outs and Deletes add a Change-log entry with the full content; Un-cross is not logged (open point 7).
 import type { AppData, Item, LogEntry, ProjectDoc, Timestamp } from './model';
 import { newId } from './ids';
@@ -127,15 +127,6 @@ export function uncross(data: AppData, pid: string, id: string, now: Timestamp):
   return { ...data, docs: { ...data.docs, [pid]: { ...doc, items: { ...doc.items, ...changed, [id]: back } } } };
 }
 
-export function sendToBottom(data: AppData, pid: string, id: string, now: Timestamp): AppData {
-  const doc = docOf(data, pid);
-  const it = itemOf(doc, id);
-  if (!it.crossed) throw new Error('Only a crossed-out Item can go to the bottom');
-  const keys = Object.values(doc.items).filter((s) => s.parent === it.parent && s.id !== id).map((s) => s.order);
-  const moved: Item = { ...it, bottomed: true, order: keyAtEnd(keys), positionAt: now };
-  return { ...data, docs: { ...data.docs, [pid]: { ...doc, items: { ...doc.items, [id]: moved } } } };
-}
-
 export function deleteItem(data: AppData, pid: string, id: string, now: Timestamp, device: string): AppData {
   const doc = docOf(data, pid);
   const it = itemOf(doc, id);
@@ -168,17 +159,6 @@ export function uncrossProject(data: AppData, pid: string, now: Timestamp): AppD
     contentAt: now, positionAt: now,
   };
   return { ...data, docs: { ...data.docs, [pid]: { ...doc, project, items: { ...doc.items, ...changed } } } };
-}
-
-export function sendProjectToBottom(data: AppData, pid: string, now: Timestamp): AppData {
-  const doc = docOf(data, pid);
-  if (!doc.project.crossed) throw new Error('Only a crossed-out Project can go to the bottom');
-  const keys = Object.entries(data.index.projectOrder).filter(([k]) => k !== pid).map(([, o]) => o.order);
-  return {
-    ...data,
-    docs: { ...data.docs, [pid]: { ...doc, project: { ...doc.project, bottomed: true, positionAt: now } } },
-    index: { ...data.index, projectOrder: { ...data.index.projectOrder, [pid]: { order: keyAtEnd(keys), at: now } } },
-  };
 }
 
 export function deleteProject(data: AppData, pid: string, now: Timestamp, device: string): AppData {

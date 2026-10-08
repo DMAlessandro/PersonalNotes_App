@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { addItem, moveItem, renameProject, setFolded } from '../domain/edits';
 import { newId } from '../domain/ids';
-import { children, projectDeadline, taskOutline } from '../domain/ordering';
+import { children, projectDeadline, splitCrossed, taskOutline } from '../domain/ordering';
 import { useStore } from '../store/store';
 import { useUi } from '../store/ui';
 import { DueChip } from './format';
@@ -10,6 +10,7 @@ import { Panel } from './Panel';
 import { TextEditor } from './TextEditor';
 import { useDrag } from './useDrag';
 import { addTopTask, lastPointerWasMouse } from './shortcuts';
+import { CrossedSection } from './CrossedSection';
 
 /** The Cards List view of one Project (spec §5.2). */
 export function ProjectView({ pid, onBack, onOpenLog }: { pid: string; onBack?: () => void; onOpenLog: () => void }) {
@@ -21,6 +22,7 @@ export function ProjectView({ pid, onBack, onOpenLog }: { pid: string; onBack?: 
 
   if (!doc) return null;
   const top = children(doc, null);
+  const split = splitCrossed(top);
   const deadline = projectDeadline(doc);
   const renaming = editing === `project:${pid}`;
 
@@ -68,9 +70,14 @@ export function ProjectView({ pid, onBack, onOpenLog }: { pid: string; onBack?: 
         </div>
       ) : (
         <div className="cards">
-          {top.map((it) => (
+          {split.open.map((it) => (
             <ItemNode key={it.id} doc={doc} item={it} depth={0} dragHandle={drag} />
           ))}
+          <CrossedSection id={groupOf(pid, null)} count={split.crossed.length}>
+            {split.crossed.map((it) => (
+              <ItemNode key={it.id} doc={doc} item={it} depth={0} dragHandle={drag} />
+            ))}
+          </CrossedSection>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canRestore, canUncrossEntry, crossOut, crossProject, deleteItem, deleteProject, restore, sendProjectToBottom,
-  sendToBottom, uncross, uncrossEntry, uncrossProject,
+  canRestore, canUncrossEntry, crossOut, crossProject, deleteItem, deleteProject, restore,
+  uncross, uncrossEntry, uncrossProject,
 } from './lifecycle';
 import { children, sortedProjectIds } from './ordering';
 import { data, doc, item, project } from './testkit';
@@ -39,9 +39,10 @@ describe('Cross out (spec §4.2)', () => {
     expect(it.t.crossSnap).toEqual({ a: false, a1: false, b: true, n: false });
   });
 
-  it('never moves anything: same place, still in the dated group', () => {
-    const before = ids(children(base().docs.p, null));
-    expect(ids(children(crossOut(base(), 'p', 't', NOW, DEV).docs.p, null))).toEqual(before);
+  it('keeps the manual order key, so the Item can return to its place (ticket 14)', () => {
+    const d = crossOut(base(), 'p', 't', NOW, DEV);
+    expect(d.docs.p.items.t.order).toBe('a');
+    expect(ids(children(d.docs.p, null))).toEqual(['u', 't']);
   });
 
   it('adds a "crossed" Change-log entry with the full branch', () => {
@@ -69,28 +70,23 @@ describe('Un-cross', () => {
     expect(Object.keys(d.log)).toHaveLength(1);
   });
 
-  it('clears "sent to bottom", which puts it back in the normal ordering', () => {
+  it('crossing out moves the Item below its open siblings; Un-cross puts it back where it was (ticket 14)', () => {
     let d = crossOut(base(), 'p', 't', NOW, DEV);
-    d = sendToBottom(d, 'p', 't', NOW);
     expect(ids(children(d.docs.p, null))).toEqual(['u', 't']);
     d = uncross(d, 'p', 't', LATER);
-    expect(d.docs.p.items.t.bottomed).toBe(false);
     expect(ids(children(d.docs.p, null))).toEqual(['t', 'u']);
+  });
+
+  it('clears a "sent to bottom" left in older data', () => {
+    const d0 = crossOut(base(), 'p', 't', NOW, DEV);
+    const old = { ...d0, docs: { p: { ...d0.docs.p, items: { ...d0.docs.p.items, t: { ...d0.docs.p.items.t, bottomed: true } } } } };
+    expect(uncross(old, 'p', 't', LATER).docs.p.items.t.bottomed).toBe(false);
   });
 
   it('leaves alone a child added after the cross-out', () => {
     let d = crossOut(base(), 'p', 't', NOW, DEV);
     d = { ...d, docs: { p: { ...d.docs.p, items: { ...d.docs.p.items, z: item('z', { parent: 't', order: 'z' }) } } } };
     expect(uncross(d, 'p', 't', LATER).docs.p.items.z.crossed).toBe(false);
-  });
-});
-
-describe('↓ bottom', () => {
-  it('only on a crossed-out Item; moves it to the end of its level', () => {
-    expect(() => sendToBottom(base(), 'p', 't', NOW)).toThrow();
-    const d = sendToBottom(crossOut(base(), 'p', 't', NOW, DEV), 'p', 't', NOW);
-    expect(d.docs.p.items.t).toMatchObject({ bottomed: true, positionAt: NOW });
-    expect(ids(children(d.docs.p, null))).toEqual(['u', 't']);
   });
 });
 
@@ -197,13 +193,12 @@ describe('Projects cross out like Items (spec §4.2, open point 8)', () => {
     expect(d.docs.p.items.a.crossed).toBe(false);
   });
 
-  it('a crossed Project keeps its place; ↓ bottom moves it last', () => {
+  it('a crossed-out Project goes after the open ones; Un-cross puts it back (ticket 14)', () => {
     const two = data([doc(project('p1')), doc(project('p2'))], { p1: 'a', p2: 'b' });
     let d = crossProject(two, 'p1', NOW, DEV);
-    expect(sortedProjectIds(d)).toEqual(['p1', 'p2']);
-    expect(() => sendProjectToBottom(two, 'p1', NOW)).toThrow();
-    d = sendProjectToBottom(d, 'p1', NOW);
     expect(sortedProjectIds(d)).toEqual(['p2', 'p1']);
+    d = uncrossProject(d, 'p1', LATER);
+    expect(sortedProjectIds(d)).toEqual(['p1', 'p2']);
   });
 
   it('Delete is only for a crossed-out Project', () => {

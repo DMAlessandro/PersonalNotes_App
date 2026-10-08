@@ -33,8 +33,12 @@ The built-in Workspace that always contains every Project and is shown when the 
 ## Lifecycle
 
 **Crossed out**:
-The single "finished / no longer active" state of an Item or a Project, shown with a line through it. You reach it by ticking a Task, or by choosing "Cross out" on a Note. Crossing out an Item crosses out and folds its whole branch. It never moves the Item. It can always be undone.
+The single "finished / no longer active" state of an Item or a Project, shown with a line through it. You reach it by ticking a Task, or by choosing "Cross out" on a Note. Crossing out an Item crosses out and folds its whole branch, shrinks its text, and moves it into the **Crossed-out section** of its level. It can always be undone, and Un-cross puts it back where it was.
 _Avoid_: Checked, done, struck, discarded, archived
+
+**Crossed-out section**:
+The bottom of each level (a Project's Tasks, a Task's children, the Projects list) holding its crossed-out Items or Projects, behind a faint line with an arrow. It is folded each time you open the Project; clicking the line shows it. The Map view doesn't show crossed-out Items or Projects at all.
+_Avoid_: Done section, archive
 
 **Delete**:
 The deliberate, separate removal of a crossed-out Item and its branch, done from the Item's menu. Only crossed-out Items can be Deleted. It can be undone through the Change log.

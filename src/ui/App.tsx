@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../store/store';
 import { isConfigured, useSync } from '../store/sync';
 import { useUi } from '../store/ui';
+import type { Item } from '../domain/model';
+import { groupOf } from './ItemNode';
 import { ChangeLog } from './ChangeLog';
 import { ProjectList } from './ProjectList';
 import { ProjectView } from './ProjectView';
@@ -120,6 +122,16 @@ export function App() {
 
   // Search jump (spec §5.4): open the Project, unfold the path, scroll to the Item and highlight it.
   // A result under Other Projects switches to All Projects so the Project is in the list.
+  // Ticket 14: open every crossed-out section on the way to the Item, and the Projects one if the Project is crossed.
+  const showCrossedPath = (pid: string, id: string) => {
+    const d = useStore.getState().data.docs[pid];
+    const keys: string[] = d?.project.crossed ? ['projects'] : [];
+    for (let it: Item | undefined = d?.items[id]; it; it = it.parent ? d.items[it.parent] : undefined) {
+      if (it.crossed) keys.push(groupOf(pid, it.parent));
+    }
+    useUi.getState().showCrossed(keys);
+  };
+
   const jump = (r: SearchResult) => {
     const st: Record<string, unknown> = { ...(history.state ?? {}) };
     delete st.search;
@@ -130,6 +142,7 @@ export function App() {
     if (workspace && !index.workspaces[workspace]?.projects.includes(r.pid)) setWorkspace(null);
     apply((d, now) => reveal(d, r.pid, r.item.id, now));
     setOpenProject(r.pid);
+    showCrossedPath(r.pid, r.item.id);
     setFlash(r.item.id);
   };
 

@@ -44,11 +44,13 @@ A personal notes/tasks PWA for one user (a researcher) on a Windows laptop and a
 - The user did the slice-1 phone checkpoint: installed and offline both work.
 - **0.10.0 (2026-10-05): laptop shortcuts (ticket 13, spec §13)**, the first item from the week of use. `src/ui/shortcuts.ts` (selection, Ctrl+Enter, double-click on empty space), `addItem(..., { after })` for "directly below" (test-first). Playwright: `scratchpad/shortcuts.mjs` of session 576f7786 (16 checks), and the slice 3/6/7/8/9 scripts rerun clean. **Not yet checked by the user.**
 
+- **0.11.0 (2026-10-08): Crossed-out section (ticket 14, spec §13).** Ordering groups by `crossed` instead of `bottomed` (test-first), `src/ui/CrossedSection.tsx`, Map leaves crossed out. Playwright `scratchpad/crossed.mjs` of session 817c4e9b (17 checks, laptop and 412px phone emulation). The earlier slice scripts were no longer on disk, so they were not rerun. **Not yet checked by the user.**
+
 ## 3. Active Decisions & Constraints
 
 Each decision's detail is in its ticket. These are the ones a fresh chat is most likely to break:
 
-- **Ticking/crossing out never moves anything,** including Projects. The user had to say this twice. Only the "↓ bottom" button moves a crossed-out Item. A Project's *sort position* uses all its dated Tasks, ticked or not. Its *chip* shows the earliest open deadline. (Ticket 01 amendment, ticket 06.)
+- **Crossing out moves the Item (or Project) into the folded Crossed-out section** at the bottom of its level, behind a faint ▾ line, with smaller text; the Map hides crossed-out ones (ticket 14, 0.11.0). Ticking a Task still never moves its *Project*: a Project's sort position uses all its dated Tasks, ticked or not. Its *chip* shows the earliest open deadline.
 - **Delete is offered only on an already crossed-out Item.** Cross out, then Delete. Everything goes to the weekly Change log and can be restored.
 - **Notes live only under a Task.** Only Tasks have children.
 - **Map boxes show their full text and never split a word.** They shrink-wrap the text up to ~210px and grow wider rather than break a word. Text is edited directly on the box, also on the phone.
@@ -57,7 +59,7 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 - **Two repos (user):** public `PersonalNotes_App` (code + these planning files, served by GitHub Pages) and private `PersonalNotes` (notes data only). The token is a fine-grained PAT limited to `PersonalNotes`, stored per device.
 - **Reversals** (the earlier answer is wrong now):
   - "Any Item can hold any Item" → only Tasks have children.
-  - "Crossed-out dated Items leave the top" → they stay put.
+  - "Crossed-out dated Items leave the top" → they stay put → (ticket 14, 2026-10-08) every crossed-out Item leaves for the Crossed-out section; "↓ bottom" removed.
   - "Top-down map on phone" → left → right everywhere (top-down is only a manual switch).
   - "Bottom-panel editing on phone" → edit on the box.
   - "Monthly change log" → weekly files.
@@ -80,7 +82,7 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 
 ## 5. Exact Next Step
 
-1. **The user tries the laptop shortcuts (0.10.0)** once deployed, and goes on with the rest of their list of fixes from the week of use. Record each new rule in §3 and in spec §13.
+1. **The user tries the laptop shortcuts (0.10.0) and the Crossed-out section (0.11.0)** once deployed, and goes on with the rest of their list of fixes from the week of use. Record each new rule in §3 and in spec §13.
 2. Don't propose out-of-scope features (reminders, deadline overview, map links, sharing, exports); the user declined them for now.
 
 Tooling note: long heredocs in the Bash tool sometimes fail with "unexpected EOF"; use the Write tool for new files.
