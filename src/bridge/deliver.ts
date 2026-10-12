@@ -8,7 +8,7 @@ import { addReplies, type Reply, type SessionMap } from './claudeSessions';
 export const BRIDGE_DEVICE = 'Claude bridge';
 
 export type DeliverResult =
-  | { kind: 'pushed' | 'nothing'; base: Base; sessions: SessionMap }
+  | { kind: 'pushed' | 'nothing'; base: Base; sessions: SessionMap; pid: string | null }
   | { kind: 'failed'; reason: string };
 
 export async function deliver(
@@ -26,6 +26,6 @@ export async function deliver(
   const base = pr.base;
   const added = addReplies(pr.kind === 'adopt' ? pr.data : base.data, replies, sessions, now, makeId);
   const r = await push(git, base, added.data, BRIDGE_DEVICE);
-  if (r.kind === 'pushed' || r.kind === 'nothing') return { kind: r.kind, base: r.base, sessions: added.sessions };
+  if (r.kind === 'pushed' || r.kind === 'nothing') return { kind: r.kind, base: r.base, sessions: added.sessions, pid: added.pid };
   return { kind: 'failed', reason: r.kind === 'busy' ? 'GitHub kept moving; will retry.' : `Push stopped: ${r.kind}` };
 }

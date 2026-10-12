@@ -3,7 +3,8 @@
 //   #phoneoff   -> stop
 //   #phone      -> only the next reply
 // A flagged reply is queued (queue/*.json) and deliver.mjs is started in the background, so Claude never
-// waits for GitHub. Plain JS, no dependencies: copied next to deliver.mjs by scripts/build-bridge.mjs.
+// waits for GitHub. Answers from the phone are picked up by a second Stop hook, `deliver.mjs --wait`
+// (asyncRewake), see bridge/cli.ts. Plain JS, no dependencies: copied next to deliver.mjs by scripts/build-bridge.mjs.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,10 +47,12 @@ try {
 
   if (input.hook_event_name === 'UserPromptSubmit') {
     const tags = [...String(input.prompt || '').matchAll(TAG)];
+    // A prompt typed at the laptop tells a waiting phone-answer waiter (deliver.mjs --wait) to step aside.
+    if (!tags.length && existsSync(statePath)) save({ ...state, promptAt: Date.now() });
     if (tags.length) {
       const last = (tags[tags.length - 1][1] || '').toLowerCase();
       const mode = last === 'on' ? 'on' : last === 'off' ? 'off' : 'once';
-      save({ ...state, mode, title: state.title || sessionTitle(input.cwd) });
+      save({ ...state, mode, title: state.title || sessionTitle(input.cwd), promptAt: Date.now() });
       log(`${sid.slice(0, 8)} -> ${mode}`);
       process.stdout.write(JSON.stringify({
         hookSpecificOutput: {

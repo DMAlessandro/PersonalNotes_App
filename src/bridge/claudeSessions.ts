@@ -17,8 +17,8 @@ export function addReplies(
   sessions: SessionMap,
   now: Timestamp,
   makeId: (prefix: 'p' | 'i') => string,
-): { data: AppData; sessions: SessionMap } {
-  if (!replies.length) return { data, sessions };
+): { data: AppData; sessions: SessionMap; pid: string | null } {
+  if (!replies.length) return { data, sessions, pid: null };
   let d = data;
   let pid = Object.values(d.docs).find((doc) => doc.project.title === SESSIONS_TITLE && !doc.project.crossed)?.project.id;
   if (!pid) {
@@ -34,5 +34,5 @@ export function addReplies(
     }
     d = addItem(d, pid, { id: makeId('i'), type: 'task', text: r.text, parent: map[r.sid] }, now);
   }
-  return { data: d, sessions: map };
+  return { data: d, sessions: map, pid };
 }
