@@ -18,6 +18,7 @@ import { DueSheet } from './DueSheet';
 import { Confirm } from './Confirm';
 import { ProjectWorkspaces } from './Workspaces';
 import { addSiblingBelow } from './shortcuts';
+import { copyText } from './clipboard';
 
 export function countDescendants(doc: ProjectDoc, id: string): number {
   return children(doc, id).reduce((n, c) => n + 1 + countDescendants(doc, c.id), 0);
@@ -94,6 +95,7 @@ export function useItemMenu(doc: ProjectDoc, item: Item) {
     isTask && { label: 'Add Task under', onSelect: () => addUnder('task') },
     isTask && { label: 'Add Note under', onSelect: () => addUnder('note') },
     { label: 'Edit', onSelect: () => startEditing(`item:${item.id}`) },
+    { label: 'Copy text', onSelect: () => void copyText(item.text) },
     isTask && { label: item.due ? 'Change due date' : 'Set due date', onSelect: () => setDueOpen(true) },
     !isTask && { label: 'Make Task', onSelect: () => apply((d, now) => makeTask(d, pid, item.id, now)) },
     canIndent(doc, item.id) && { label: 'Indent', onSelect: () => apply((d, now) => indent(d, pid, item.id, now)) },
