@@ -1,4 +1,4 @@
-// Builds the Claude Sessions bridge (ticket 16) into a folder of your choice:
+// Builds the Claude Sessions bridge (ticket 16) into a folder (the usual one: bridge-runtime/, git-ignored):
 //   node scripts/build-bridge.mjs <folder>
 // Writes <folder>/deliver.mjs (bundled, no dependencies), hook.mjs and install-global.mjs. Keeps config.json, queue/ and data/.
 import { copyFileSync, mkdirSync } from 'node:fs';

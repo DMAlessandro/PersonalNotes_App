@@ -12,6 +12,8 @@ const settingsPath = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.cla
 const hook = join(here, 'hook.mjs').replace(/\\/g, '/');
 const deliver = join(here, 'deliver.mjs').replace(/\\/g, '/');
 const remove = process.argv.includes('--remove');
+// Bridge hooks from this folder or an earlier one (the first runtime folder was phone-bridge-test).
+const OLD = /(phone-bridge-test|bridge-runtime)[\\/]+(hook|deliver)\.mjs/;
 
 // hook.mjs: tags + queueing (fast). deliver.mjs --wait: background waiter for a phone answer, wakes the
 // session when one arrives (asyncRewake); it gives up after config.json "waitMinutes" (default 55).
@@ -27,7 +29,7 @@ const s = JSON.parse(readFileSync(settingsPath, 'utf8'));
 copyFileSync(settingsPath, `${settingsPath}.bak-phone-bridge`);
 s.hooks ??= {};
 for (const [ev, hooks] of Object.entries(ours)) {
-  const kept = (s.hooks[ev] ?? []).filter((e) => !JSON.stringify(e).includes('phone-bridge-test'));
+  const kept = (s.hooks[ev] ?? []).filter((e) => !OLD.test(JSON.stringify(e)));
   s.hooks[ev] = remove ? kept : [...kept, { hooks }];
   if (!s.hooks[ev].length) delete s.hooks[ev];
 }
