@@ -536,4 +536,5 @@ New in this spec:
   - Shown sections are screen state only: the Item ones close on opening another Project or reloading; the Projects-list one closes on reload. A search jump opens the sections on the way to its Item.
   - The Map view leaves out crossed-out Items and Projects; progress (`2/5`) still counts them; "+N" counts only open Items.
   - `bottomed` stays in the files for old data but is no longer set; "↓ bottom" and `sendToBottom`/`sendProjectToBottom` are gone.
-
+- **Copy text** (ticket 15, user 2026-10-12; built in 0.12.0): the Item ⋯ menu (List and Map) has "Copy text" after Edit. It copies only that Item's text, line breaks kept, and shows a "Copied" toast (an error toast if the browser blocks the clipboard).
+- **Claude Sessions bridge** (ticket 16, user 2026-10-12): not part of the app. A Claude Code hook on the laptop sends a session's replies, on request (`#phoneon` / `#phoneoff` / `#phone` in a prompt), into a Project "Claude Sessions": one Task per session, each reply a Subtask. It writes through the repo with the app's own sync engine (`src/bridge/`, `bridge/`, `scripts/build-bridge.mjs`), as device "Claude bridge".

@@ -45,6 +45,8 @@ A personal notes/tasks PWA for one user (a researcher) on a Windows laptop and a
 - **0.10.0 (2026-10-05): laptop shortcuts (ticket 13, spec §13)**, the first item from the week of use. `src/ui/shortcuts.ts` (selection, Ctrl+Enter, double-click on empty space), `addItem(..., { after })` for "directly below" (test-first). Playwright: `scratchpad/shortcuts.mjs` of session 576f7786 (16 checks), and the slice 3/6/7/8/9 scripts rerun clean. **Not yet checked by the user.**
 
 - **0.11.0 (2026-10-08): Crossed-out section (ticket 14, spec §13).** Ordering groups by `crossed` instead of `bottomed` (test-first), `src/ui/CrossedSection.tsx`, Map leaves crossed out. Playwright `scratchpad/crossed.mjs` of session 817c4e9b (17 checks, laptop and 412px phone emulation). The earlier slice scripts were no longer on disk, so they were not rerun. **Not yet checked by the user.**
+- **0.12.0 (2026-10-12): Copy text (ticket 15, spec §13).** Item ⋯ → Copy text (List and Map) copies only that Item's text; "Copied" toast. `src/ui/clipboard.ts`. Playwright `scratchpad/copy.mjs` of session d7d0bbbc (laptop and 412px). Note: on Windows the clipboard reads back `\n` as `\r\n`. **Not yet checked by the user.**
+- **Claude Sessions bridge (2026-10-12, ticket 16):** a Claude Code hook (not an app feature) sends tagged replies (`#phoneon`/`#phoneoff`/`#phone`) to a Project "Claude Sessions" via the repo. Source in `src/bridge/` (pure + tests) and `bridge/` (Node hook + delivery CLI); `node scripts/build-bridge.mjs <folder>` builds it into the runtime folder `C:\Users\9alex\Desktop\ClaudeAle\phone-bridge-test` (holds `config.json` with the token, `queue/`, `data/bridge.log`). Phases 1-2 confirmed by the user on the phone. Phase 3 (answer from the phone) in progress.
 
 ## 3. Active Decisions & Constraints
 
@@ -82,7 +84,7 @@ Each decision's detail is in its ticket. These are the ones a fresh chat is most
 
 ## 5. Exact Next Step
 
-1. **The user tries the laptop shortcuts (0.10.0) and the Crossed-out section (0.11.0)** once deployed, and goes on with the rest of their list of fixes from the week of use. Record each new rule in §3 and in spec §13.
+1. **The user tries the laptop shortcuts (0.10.0), the Crossed-out section (0.11.0) and Copy text (0.12.0)** once deployed, and goes on with the rest of their list of fixes from the week of use. Record each new rule in §3 and in spec §13.
 2. Don't propose out-of-scope features (reminders, deadline overview, map links, sharing, exports); the user declined them for now.
 
 Tooling note: long heredocs in the Bash tool sometimes fail with "unexpected EOF"; use the Write tool for new files.

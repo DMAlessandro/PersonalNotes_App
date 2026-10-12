@@ -34,6 +34,8 @@ A buildable spec at `.scratch/personal-note-app/spec.md`: every design decision 
 - [Map view touch interactions on a phone](issues/11-map-touch-interactions.md): edit text directly on the box (multi-line, Enter saves); one-finger pan, pinch-zoom, long-press for the menu; boxes shrink-wrap their full text up to ~210px and never split a word.
 - [Laptop shortcuts for adding and editing](issues/13-laptop-shortcuts.md): in both views, double-click text = edit, double-click empty space = new Task; click selects; Ctrl+Enter = same-type sibling right below the edited/selected Item, or a new top-level Task when nothing is selected; Enter saves, Shift+Enter = line break, Esc cancels.
 - [Crossed-out section](issues/14-crossed-out-section.md): crossing out now moves the Item/Project to a folded section at the bottom of its level behind a faint ▾ line, with smaller text; the Map hides them; "↓ bottom" removed (reverses "crossing out never moves anything").
+- [Copy text](issues/15-copy-text.md): Item ⋯ → Copy text puts only that Item's text on the clipboard (laptop and phone), with a "Copied" toast.
+- [Claude Sessions bridge](issues/16-claude-sessions-bridge.md): a laptop hook sends Claude Code replies on request (#phoneon/#phoneoff/#phone) to a Project "Claude Sessions", one Task per session, replies as Subtasks; Remote Control is disabled by the org.
 - [Write the buildable spec and build slices](issues/12-write-spec.md): [spec.md](spec.md) approved; flat per-id records + fractional order keys; field-level three-way merge with structure repair; 9 slices (shell → outline → cross/delete/log → GitHub → merge → Workspaces/Search → Map laptop → Map phone → polish); all 18 open points accepted.
 
 ## Not yet specified
